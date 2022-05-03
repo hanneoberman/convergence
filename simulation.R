@@ -19,8 +19,17 @@ n_imp = 5 # c(1, 5, 10)
 n_it = 7 # c(1, 5, 10)
 imp_par <- expand.grid(amp_nr = 1:nrow(amp_par), imp_meth = imp_meth, n_imp = n_imp, n_it = n_it, stringsAsFactors = FALSE)
 
-# simulate
-all_dat <- purrr::pmap(dat_par, ~{generation(n = ..1, r = ..2)})
-all_amp <- purrr::pmap(amp_par, ~{amputation(all_dat[[..1]], mech = ..2, type = ..3, prop = ..4)})
-all_imp2 <- purrr::pmap_dfr(imp_par, ~{imputation(all_amp[[..1]], meth = ..2, m = ..3, it = ..4) %>% 
-    evaluation()})
+# simulation function
+simulate_once <- function(...) {
+  all_dat <- purrr::pmap(dat_par, ~{generation(n = ..1, r = ..2)})
+  all_amp <- purrr::pmap(amp_par, ~{amputation(all_dat[[..1]], mech = ..2, type = ..3, prop = ..4)})
+  all_imp <- purrr::pmap(imp_par, ~{imputation(all_amp[[..1]], meth = ..2, m = ..3, it = ..4)})
+  out <- purrr::map_dfr(all_imp, ~evaluation(.x))
+  return(out)
+}
+
+# test function
+simulate_once()
+
+# testrun simulation 
+a <- replicate(n_sim, simulate_once(), simplify = FALSE)
