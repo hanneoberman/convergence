@@ -1,2 +1,20 @@
-# convergence
-Simulation study to evaluate the convergence of the MICE algorithm
+# Non-convergence in iterative imputation
+
+A simulation study to evaluate non-convergence in the MICE algorithm.
+
+## Abstract
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+## Contents
+
+* [Manuscript.pdf](.\convergence\Manuscript.pdf)
+* [Simulation.R](.\convergence\Simulation.R)
+* [Manuscript/](.\convergence\Manuscript)
+  * [Manuscript.Rmd](.\convergence\Manuscript\Manuscript.Rmd)
+  * [references.bib](.\convergence\references.bib)
+* [Simulation/](.\convergence\Simulation)
+  * [DGM.R](.\convergence\Simulation\DGM.R)
+  * [methods.R](.\convergence\Simulation\methods.R)
+  * [performance.R](.\convergence\Simulation\performance.R)
+  * [utils.R](.\convergence\Simulation\utils.R)
