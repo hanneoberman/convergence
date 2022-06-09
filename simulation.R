@@ -1,35 +1,111 @@
-## simulation parameters ##
+########################
+### SETUP SIMULATION ###
+########################
 
-# setup
-set.seed(123)
-n_sim = 2
+# packages
+library(dplyr)
+library(mvtnorm)
+library(mice)
+library(miceadds)
 
-# data generation parameters
-n_obs = 500 # c(50, 500, 5000) 
-corr = 0.4 # c(0, 0.4, 0.8)
-dat_par <- expand.grid(n_obs = n_obs, corr = corr)
-# amputation parameters
-mis_mech = c("MCAR", "MAR") # c("MCAR", "MAR", "MNAR")
-mis_type = "RIGHT"  # c("LEFT", "RIGHT", "MID", "TAIL")
+# functions
+miceadds::source.all("./functions")
+
+# randomness
+set.seed(1)
+
+# parameters
+n_sim <- 2
+n_obs <- 200
+n_it <- 20
+betas <- c(-0.5, -0.1, 0.1, 0.5)
+mis_mech = c("MCAR", "MAR")
 mis_prop = c(0.1, 0.25, 0.5)
-amp_par <- expand.grid(dat_nr = 1:nrow(dat_par), mis_mech = mis_mech, mis_type = mis_type, mis_prop = mis_prop, stringsAsFactors = FALSE)
-# imputation parameters
-imp_meth = c("none", "norm") # c("none", "mean", "norm.predict", "norm") 
-n_imp = 5 # c(1, 5, 10)
-n_it = 7 # c(1, 5, 10)
-imp_par <- expand.grid(amp_nr = 1:nrow(amp_par), imp_meth = imp_meth, n_imp = n_imp, n_it = n_it, stringsAsFactors = FALSE)
 
-# simulation function
-simulate_once <- function(...) {
-  all_dat <- purrr::pmap(dat_par, ~{generation(n = ..1, r = ..2)})
-  all_amp <- purrr::pmap(amp_par, ~{amputation(all_dat[[..1]], mech = ..2, type = ..3, prop = ..4)})
-  all_imp <- purrr::pmap(imp_par, ~{imputation(all_amp[[..1]], meth = ..2, m = ..3, it = ..4)})
-  out <- purrr::map_dfr(all_imp, ~evaluation(.x))
-  return(out)
+# #################################
+# ### TEST LOWER LEVEL FUCTIONS ###
+# #################################
+# 
+# # generate data
+# dat <- generate_complete(n_obs, betas)
+# 
+# # ampute data
+# amps <- induce_missingness(dat, mis_mech = "MAR", mis_prop = 0.5)
+# 
+# # apply complete case analysis
+# CCA <- apply_CCA(amps[[1]])
+# 
+# # impute data with MICE
+# MICE <- apply_MICE(amps[[1]])
+# 
+# # impute data with python
+# ### [YOUR FUNCTION HERE] ###
+# 
+# ##################################
+# ### TEST HIGHER LEVEL FUCTIONS ###
+# ##################################
+# 
+# amps <- create_data()
+# ests <- apply_methods(amps, betas)
+
+################################
+### COMBINE INTO ONE FUCTION ###
+################################
+
+simulate_once <- function(n_obs, betas, mis_mech, mis_prop) {
+  # generate incomplete data
+  amps <- create_data(
+    sample_size = n_obs,
+    effects = betas,
+    mechanisms = mis_mech,
+    proportions = mis_prop
+  )
+  # estimate regression coefficients
+  ests <- apply_methods(amps, betas, n_it)
+  # output
+  return(ests)
 }
 
-# test function
-simulate_once()
+# ################################
+# ### TEST SIMULATION FUNCTION ###
+# ################################
+# 
+# ests <- simulate_once(n_obs, betas, mis_mech, mis_prop)
 
-# testrun simulation 
-a <- replicate(n_sim, simulate_once(), simplify = FALSE)
+######################
+### RUN SIMULATION ###
+######################
+
+# repeat the simulation function n_sim times
+results_raw <- replicate(
+  n_sim, 
+  simulate_once(n_obs, betas, mis_mech, mis_prop),
+  simplify = FALSE
+  )
+# save raw results
+saveRDS(results_raw, "./Results/raw.RDS")
+
+########################
+### EVALUATE RESULTS ###
+########################
+
+# calculate bias, coverage rate and CI width
+performance <- evaluate_est(results_raw)
+saveRDS(performance, "./Results/performance.RDS")
+
+# simulation results across all conditions
+performance %>% 
+  group_by(method) %>% 
+  summarise(across(c(bias, cov, ciw), mean))
+
+# simulation results split by condition
+performance %>% 
+  group_by(method, mech, prop) %>% 
+  summarise(across(c(bias, cov, ciw), mean))
+
+# simulation results split by condition and regression coefficient
+performance %>% 
+  group_by(method, mech, prop, term) %>% 
+  summarise(across(c(bias, cov, ciw), mean))
+
+
