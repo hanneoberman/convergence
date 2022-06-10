@@ -11,45 +11,54 @@ apply_CCA <- function(amp) {
     # choose estimates
     select(term, estimate, conf.low, conf.high) %>% 
     # add method name and missingness
-    cbind(it = 0, method = "CCA", mech = amp$mech, prop = amp$prop, .) 
+    cbind(method = "CCA", mech = amp$mech, prop = amp$prop, .it = 0, ., ac = NA, psrf = NA) 
+  # rename "(Intercept)" to "Y" for easier processing
+  est[est$term == "(Intercept)", "term"] <- "Y"
   # output
   return(est)
 }
 
 # MICE imputation
 apply_MICE <- function(amp, n_it) {
-  # imputation with MICE
+  # first imputation with MICE
   imp1 <- mice::mice(amp$amp, method = "norm", maxit = 1, printFlag = FALSE)
-  imps <- list(imp1, estimate_param(imp1))
-  imps2 <- mice::mice.mids(imps[[1]], printFlag = FALSE)
-  imps <- mice::mice.mids(imps)
-  # fit regression on each imputation
-  # est <- with(imp, lm(Y ~ X1 + X2 + X3 + X4)) %>% 
-  #   # pool results
-  #   mice::pool() %>% 
-  #   # clean results
-  #   broom::tidy(conf.int = TRUE) %>% 
-  #   # select estimates
-  #   select(term, estimate, conf.low, conf.high) %>% 
-  #   # add simulation conditions
-  #   cbind(method = "MICE", mech = amp$mech, prop = amp$prop, .)
-  est <- estimate_param(imp1)
-  ests <- cbind(method = "MICE", mech = amp$mech, prop = amp$prop, est)
+  # add regression estimates
+  implist <- list(imp1, cbind(.it = 1, estimate_param(imp1)))
+  # iterate and estimate
+  for (i in 2:n_it) {
+    add_iteration(implist)
+  }
+  # calculate convergence diagnostics
+  conv <- mice::convergence(implist[[1]])
+  conv_sorted <- conv[order(conv$.it, conv$vrb), ]
   # output
+  ests <- cbind(method = "MICE", mech = amp$mech, prop = amp$prop, implist[[2]], ac = conv_sorted$ac, psrf = conv_sorted$psrf)
   return(ests)
 }
 
-estimate_param <- function(imp, it = 1) {
+# internal function to calculate pooled regression estimates
+estimate_param <- function(imp) {
   est <- with(imp, lm(Y ~ X1 + X2 + X3 + X4)) %>% 
     # pool results
     mice::pool() %>% 
     # clean results
     broom::tidy(conf.int = TRUE) %>% 
     # select estimates
-    select(term, estimate, conf.low, conf.high) %>% 
-    # add simulation conditions
-    cbind(.it = it, .)
+    select(term, estimate, conf.low, conf.high)
+  # rename "(Intercept)" to "Y" for easier processing
+  est[est$term == "(Intercept)", "term"] <- "Y"
+  # output
   return(est)
+}
+
+# internal function to iterate with MICE
+add_iteration <- function(implist) {
+  # iterate
+  imp <- mice::mice.mids(implist[[1]], printFlag = FALSE) 
+  # estimate
+  est <- cbind(.it = imp$iteration, estimate_param(imp))
+  # output
+  implist <<- list(imp, rbind(implist[[2]], est))
 }
 
 # combine into one function

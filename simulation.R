@@ -46,7 +46,7 @@ mis_prop = c(0.1, 0.25, 0.5)
 # ##################################
 # 
 # amps <- create_data()
-# ests <- apply_methods(amps, betas)
+# ests <- apply_methods(amps, betas, n_it)
 
 ################################
 ### COMBINE INTO ONE FUCTION ###
