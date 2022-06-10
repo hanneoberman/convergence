@@ -12,12 +12,12 @@ library(miceadds)
 miceadds::source.all("./functions")
 
 # randomness
-set.seed(1)
+set.seed(11)
 
 # parameters
-n_sim <- 2
+n_sim <- 2000
 n_obs <- 200
-n_it <- 20
+n_it <- 100
 betas <- c(-0.5, -0.1, 0.1, 0.5)
 mis_mech = c("MCAR", "MAR")
 mis_prop = c(0.1, 0.25, 0.5)
