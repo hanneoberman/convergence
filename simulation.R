@@ -95,17 +95,17 @@ saveRDS(performance, "./Results/performance.RDS")
 
 # simulation results across all conditions
 performance %>% 
-  group_by(method) %>% 
-  summarise(across(c(bias, cov, ciw), mean))
+  group_by(method, .it) %>% 
+  summarise(across(c(bias, cov, ciw, ac, psrf), mean, na.rm = TRUE))
 
 # simulation results split by condition
 performance %>% 
-  group_by(method, mech, prop) %>% 
-  summarise(across(c(bias, cov, ciw), mean))
+  group_by(method, mech, prop, .it) %>% 
+  summarise(across(c(bias, cov, ciw, ac, psrf), mean, na.rm = TRUE))
 
 # simulation results split by condition and regression coefficient
 performance %>% 
-  group_by(method, mech, prop, term) %>% 
-  summarise(across(c(bias, cov, ciw), mean))
+  group_by(method, mech, prop, .it, term) %>% 
+  summarise(across(c(bias, cov, ciw, ac, psrf), mean, na.rm = TRUE))
 
 

@@ -26,7 +26,7 @@ apply_MICE <- function(amp, n_it) {
   implist <- list(imp1, cbind(.it = 1, estimate_param(imp1)))
   # iterate and estimate
   for (i in 2:n_it) {
-    add_iteration(implist)
+    implist <- add_iteration(implist)
   }
   # calculate convergence diagnostics
   conv <- mice::convergence(implist[[1]])
@@ -67,8 +67,6 @@ apply_methods <- function(amps, betas, n_it) {
   CCA <- purrr::map_dfr(amps, ~{apply_CCA(.)})
   # impute with MICE and estimate effects
   MICE <-  purrr::map_dfr(amps, ~{apply_MICE(., n_it)})
-  # impute with Python and estimate effects
-  ### [YOUR FUNCTION HERE] ###
   # combine estimates 
   ests <- rbind(CCA, MICE) %>% 
     cbind(truth = c(0, betas))
