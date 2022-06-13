@@ -3,6 +3,7 @@
 # generate complete data
 generate_complete <- function(
     n_obs = 200,
+    corr = 0.3,
     betas = c(-0.5,-0.1, 0.1, 0.5)
 ) {
   # create variance-covariance matrix with moderate correlations
@@ -45,12 +46,13 @@ induce_missingness <- function(
 # combine into one function
 create_data <- function(
     sample_size = 200, 
+    correlations = 0.3,
     effects = c(-0.5,-0.1, 0.1, 0.5),
     mechanisms = c("MCAR", "MAR"),
     proportions = c(0.1, 0.25, 0.5)
 ) {
   # create a single complete dataset
-  dat <- generate_complete(n_obs = sample_size, betas = effects)
+  dat <- generate_complete(n_obs = sample_size, corr = correlations, betas = effects)
   # ampute the data with different missingness
   amps <- induce_missingness(dat, mis_mech = mechanisms, mis_prop = proportions)
   # output

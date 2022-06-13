@@ -7,10 +7,25 @@ bibliography: references.bib
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(dplyr)
-library(purrr)
-library(mice)
-miceadds::source.all("R")
+library(tidyverse)
+
+# filters
+coeff <- "X4"
+maxit <- 20
+```
+
+```{r data}
+performance <- readRDS("./Results/performance.RDS")
+summary <- performance %>% 
+  group_by(method, mech, prop, .it, term) %>% 
+  summarise(across(c(bias, cov, ciw, ac, psrf), mean, na.rm = TRUE))
+SEs <- performance %>% 
+  group_by(method, mech, prop, .it, term) %>% 
+  summarise(across(c(bias, ciw, ac, psrf), var, na.rm = TRUE)) %>% 
+  mutate(across(c(bias, ciw, ac, psrf), sqrt))
+results <- left_join(summary, SEs, by = c("method", "mech", "prop", ".it", "term"), suffix = c("", "_SE")) %>% 
+  mutate(cov = cov,
+         cov_SE = sqrt((cov * (1 - cov)) / 2000))
 ```
 
 # Abstract
@@ -77,17 +92,52 @@ for (data geneneration conditions) {
 \end{tabular}
 \end{table}
 
-```{r eval=FALSE, include=FALSE}
-dat <- generation()
-amp <- amputation(dat)
-imp <- imputation(amp)
-est <- evaluation(imp)
-```
-
 
 # Results
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+```{r}
+# results %>% 
+#   filter(term == "X2", .it < 26) %>% 
+#   ggplot(aes(x = .it, y = bias)) +
+#   geom_hline(yintercept = 0, color = "grey", size = 2) +
+#   geom_line(color = "blue") +
+#   geom_line(aes(x = .it, y = bias + bias_SE), color = "lightblue", linetype = "dashed") +
+#   geom_line(aes(x = .it, y = bias - bias_SE), color = "lightblue", linetype = "dashed") +
+#   facet_grid(as.factor(prop) ~ mech) +
+#   theme_classic()
+
+results %>% 
+  filter(term == coeff, .it > 0, .it < maxit + 1) %>% 
+  ggplot(aes(x = .it, y = bias)) +
+  geom_hline(yintercept = 0, color = "black") +
+  geom_errorbar(aes(ymin = bias - bias_SE, ymax = bias + bias_SE), alpha = 0.1) +
+  geom_line(color = "blue") +
+  geom_point(color = "blue") +
+  facet_grid(as.factor(prop) ~ mech) +
+  theme_classic()
+
+results %>% 
+  filter(term == coeff, .it > 0, .it < maxit + 1) %>% 
+  ggplot(aes(x = .it, y = ac)) +
+  geom_hline(yintercept = 0, color = "black") +
+  geom_errorbar(aes(ymin = ac - ac_SE, ymax = ac + ac_SE), alpha = 0.1) +
+  geom_line(color = "blue") +
+  geom_point(color = "blue") +
+  facet_grid(as.factor(prop) ~ mech) +
+  theme_classic()
+
+results %>% 
+  filter(term == coeff, .it > 0, .it < maxit + 1) %>% 
+  ggplot(aes(x = .it, y = psrf)) +
+  geom_hline(yintercept = 1, color = "black") +
+  geom_errorbar(aes(ymin = psrf - psrf_SE, ymax = psrf + psrf_SE), alpha = 0.1) +
+  geom_line(color = "blue") +
+  geom_point(color = "blue") +
+  facet_grid(as.factor(prop) ~ mech) +
+  theme_classic()
+```
 
 
 # Discussion

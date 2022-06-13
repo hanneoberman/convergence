@@ -17,17 +17,18 @@ set.seed(11)
 # parameters
 n_sim <- 2000
 n_obs <- 200
-n_it <- 100
+corr <- 0.3
 betas <- c(-0.5, -0.1, 0.1, 0.5)
 mis_mech = c("MCAR", "MAR")
 mis_prop = c(0.1, 0.25, 0.5)
+n_it <- 100
 
 # #################################
 # ### TEST LOWER LEVEL FUCTIONS ###
 # #################################
 # 
 # # generate data
-# dat <- generate_complete(n_obs, betas)
+# dat <- generate_complete(n_obs, corr, betas)
 # 
 # # ampute data
 # amps <- induce_missingness(dat, mis_mech = "MAR", mis_prop = 0.5)
@@ -82,8 +83,8 @@ results_raw <- replicate(
   simulate_once(n_obs, betas, mis_mech, mis_prop),
   simplify = FALSE
   )
-# save raw results
-saveRDS(results_raw, "./Results/raw.RDS")
+# # save raw results
+# saveRDS(results_raw, "./Results/raw.RDS")
 
 ########################
 ### EVALUATE RESULTS ###
@@ -91,7 +92,7 @@ saveRDS(results_raw, "./Results/raw.RDS")
 
 # calculate bias, coverage rate and CI width
 performance <- evaluate_est(results_raw)
-saveRDS(performance, "./Results/performance.RDS")
+# saveRDS(performance, "./Results/performance.RDS")
 
 # simulation results across all conditions
 performance %>% 
