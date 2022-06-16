@@ -22,9 +22,19 @@ generate_complete <- function(
   return(dat)
 }
 
+# generate multivariate missingness patterns patterns
+create_patterns <- function() {
+  mis_pat <-
+    expand.grid(c(0, 1), c(0, 1), c(0, 1), c(0, 1), c(0, 1)) %>%
+    setNames(., c("Y", "X1", "X2", "X3", "X4")) %>%
+    .[rowSums(.) > 1 & rowSums(.) < 5, ]
+  return(mis_pat)
+}
+
 # ampute the complete data
 induce_missingness <- function(
     dat,
+    mis_pat = NULL, 
     mis_mech = c("MCAR", "MAR"),
     mis_prop = c(0.1, 0.25, 0.5)
 ) {
@@ -33,7 +43,7 @@ induce_missingness <- function(
   amps <- purrr::map(mis_mech, function(mm) {
     purrr::map(mis_prop, function(mp) {
       # ampute the data
-      mice::ampute(dat, mech = mm, prop = mp) 
+      mice::ampute(dat, patterns = mis_pat, mech = mm, prop = mp) 
     }) 
   }) %>% 
     # unlist just make sure the proportions 
@@ -48,13 +58,14 @@ create_data <- function(
     sample_size = 200, 
     correlations = 0.3,
     effects = c(-0.5,-0.1, 0.1, 0.5),
+    patterns = NULL, 
     mechanisms = c("MCAR", "MAR"),
     proportions = c(0.1, 0.25, 0.5)
 ) {
   # create a single complete dataset
   dat <- generate_complete(n_obs = sample_size, corr = correlations, betas = effects)
   # ampute the data with different missingness
-  amps <- induce_missingness(dat, mis_mech = mechanisms, mis_prop = proportions)
+  amps <- induce_missingness(dat, mis_pat, mis_mech = mechanisms, mis_prop = proportions)
   # output
   return(amps)
 }

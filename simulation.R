@@ -15,13 +15,14 @@ miceadds::source.all("./functions")
 set.seed(11)
 
 # parameters
-n_sim <- 2000
+n_sim <- 10
 n_obs <- 200
-corr <- 0.3
-betas <- c(-0.5, -0.1, 0.1, 0.5)
+corr <- 0.5
+betas <- c(1, 1, -1, -1)
+mis_pat <- create_patterns()
 mis_mech = c("MCAR", "MAR")
-mis_prop = c(0.1, 0.25, 0.5)
-n_it <- 100
+mis_prop = c(0.25, 0.5, 0.75)
+n_it <- 10
 
 # #################################
 # ### TEST LOWER LEVEL FUCTIONS ###
@@ -31,16 +32,7 @@ n_it <- 100
 # dat <- generate_complete(n_obs, corr, betas)
 # 
 # # ampute data
-# amps <- induce_missingness(dat, mis_mech = "MAR", mis_prop = 0.5)
-# 
-# # apply complete case analysis
-# CCA <- apply_CCA(amps[[1]])
-# 
-# # impute data with MICE
-# MICE <- apply_MICE(amps[[1]])
-# 
-# # impute data with python
-# ### [YOUR FUNCTION HERE] ###
+# amps <- induce_missingness(dat, mis_pat, mis_mech = "MAR", mis_prop = 0.5)
 # 
 # ##################################
 # ### TEST HIGHER LEVEL FUCTIONS ###
@@ -53,11 +45,12 @@ n_it <- 100
 ### COMBINE INTO ONE FUCTION ###
 ################################
 
-simulate_once <- function(n_obs, betas, mis_mech, mis_prop) {
+simulate_once <- function(n_obs, betas, mis_pat, mis_mech, mis_prop) {
   # generate incomplete data
   amps <- create_data(
     sample_size = n_obs,
     effects = betas,
+    patterns = mis_pat,
     mechanisms = mis_mech,
     proportions = mis_prop
   )
@@ -80,7 +73,7 @@ simulate_once <- function(n_obs, betas, mis_mech, mis_prop) {
 # repeat the simulation function n_sim times
 results_raw <- replicate(
   n_sim, 
-  simulate_once(n_obs, betas, mis_mech, mis_prop),
+  simulate_once(n_obs, betas, mis_pat, mis_mech, mis_prop),
   simplify = FALSE
   )
 # # save raw results
