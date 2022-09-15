@@ -11,7 +11,7 @@ apply_CCA <- function(amp) {
     # choose estimates
     select(term, estimate, conf.low, conf.high) %>% 
     # add method name and missingness
-    cbind(method = "CCA", mech = amp$mech, prop = amp$prop, .it = 0, ., ac = NA, psrf = NA) 
+    cbind(method = "CCA", mech = amp$mech, prop = amp$prop, .it = 0, ., ac_mean = NA, psrf_mean = NA, ac_sd = NA, psrf_sd = NA) 
   # rename "(Intercept)" to "Y" for easier processing
   est[est$term == "(Intercept)", "term"] <- "Y"
   # output
@@ -30,14 +30,27 @@ apply_MICE <- function(amp, n_it) {
   }
   # calculate convergence diagnostics
   conv <- mice::convergence(implist[[1]])
+  conv_sd <- mice::convergence(implist[[1]], parameter = "sd")
+  conv$ac_sd <- conv_sd$ac
+  conv$psrf_sd <- conv_sd$psrf
   conv_sorted <- conv[order(conv$.it, conv$vrb), ]
+  
   # output
-  ests <- cbind(method = "MICE", mech = amp$mech, prop = amp$prop, implist[[2]], ac = conv_sorted$ac, psrf = conv_sorted$psrf)
+  ests <- cbind(
+    method = "MICE", 
+    mech = amp$mech, 
+    prop = amp$prop, 
+    implist[[2]], 
+    ac_mean = conv_sorted$ac, 
+    psrf_mean = conv_sorted$psrf,
+    ac_sd = conv_sorted$ac_sd, 
+    psrf_sd = conv_sorted$psrf_sd)
   return(ests)
 }
 
 # internal function to calculate pooled regression estimates
 estimate_param <- function(imp) {
+  # run analysis on all imputations
   est <- with(imp, lm(Y ~ X1 + X2 + X3 + X4)) %>% 
     # pool results
     mice::pool() %>% 
@@ -73,3 +86,21 @@ apply_methods <- function(amps, betas, n_it) {
   # output
   return(ests)
 }
+
+# # internal function to compute the autocorrelation
+# calculate_ac <- function(x){
+#   t = length(x)
+#   ac <- c(NA, dplyr::cummean(dplyr::coalesce(
+#       purrr::map_dbl(2:t, function(.itr) {
+#         suppressWarnings(stats::cor(
+#           x[.itr - 1], 
+#           x[.itr], 
+#           use = "pairwise.complete.obs"))
+#       }), 0))) + 0 * x
+# }
+# 
+# # convergence parameters
+# collect_theta <- function(imp) {
+#  a <-  mice::complete(imp, "all")
+#  purrr::map_dbl(a, ~{princomp(., cor = TRUE) %>% .$sdev %>% .[1] %>% . ^ 2})
+# }

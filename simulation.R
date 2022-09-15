@@ -90,16 +90,16 @@ performance <- evaluate_est(results_raw)
 # simulation results across all conditions
 performance %>% 
   group_by(method, .it) %>% 
-  summarise(across(c(bias, cov, ciw, ac, psrf), mean, na.rm = TRUE))
+  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
 
 # simulation results split by condition
 performance %>% 
   group_by(method, mech, prop, .it) %>% 
-  summarise(across(c(bias, cov, ciw, ac, psrf), mean, na.rm = TRUE))
+  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
 
 # simulation results split by condition and regression coefficient
 performance %>% 
   group_by(method, mech, prop, .it, term) %>% 
-  summarise(across(c(bias, cov, ciw, ac, psrf), mean, na.rm = TRUE))
+  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
 
 

@@ -7,6 +7,7 @@ dat <- generate_complete(n_obs, corr, betas)
 
 # ampute data
 amps <- induce_missingness(dat, mis_pat = NULL, mis_mech = "MAR", mis_prop = 0.5)
+# amp = amps[[1]]
 
 # impute data with MICE
 imp <- mice(amps[[1]]$amp, maxit = 10)

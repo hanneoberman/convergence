@@ -18,11 +18,11 @@ maxit <- 20
 performance <- readRDS("./Results/performance.RDS")
 summary <- performance %>% 
   group_by(method, mech, prop, .it, term) %>% 
-  summarise(across(c(bias, cov, ciw, ac, psrf), mean, na.rm = TRUE))
+  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
 SEs <- performance %>% 
   group_by(method, mech, prop, .it, term) %>% 
-  summarise(across(c(bias, ciw, ac, psrf), var, na.rm = TRUE)) %>% 
-  mutate(across(c(bias, ciw, ac, psrf), sqrt))
+  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), var, na.rm = TRUE)) %>% 
+  mutate(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), sqrt))
 results <- left_join(summary, SEs, by = c("method", "mech", "prop", ".it", "term"), suffix = c("", "_SE")) %>% 
   mutate(cov = cov,
          cov_SE = sqrt((cov * (1 - cov)) / 2000))
@@ -120,9 +120,9 @@ results %>%
 
 results %>% 
   filter(term == coeff, .it > 0, .it < maxit + 1) %>% 
-  ggplot(aes(x = .it, y = ac)) +
+  ggplot(aes(x = .it, y = ac_mean)) +
   geom_hline(yintercept = 0, color = "black") +
-  geom_errorbar(aes(ymin = ac - ac_SE, ymax = ac + ac_SE), alpha = 0.1) +
+  geom_errorbar(aes(ymin = ac_mean - ac_mean_SE, ymax = ac_mean + ac_mean_SE), alpha = 0.1) +
   geom_line(color = "blue") +
   geom_point(color = "blue") +
   facet_grid(as.factor(prop) ~ mech) +
@@ -130,9 +130,29 @@ results %>%
 
 results %>% 
   filter(term == coeff, .it > 0, .it < maxit + 1) %>% 
-  ggplot(aes(x = .it, y = psrf)) +
+  ggplot(aes(x = .it, y = psrf_mean)) +
   geom_hline(yintercept = 1, color = "black") +
-  geom_errorbar(aes(ymin = psrf - psrf_SE, ymax = psrf + psrf_SE), alpha = 0.1) +
+  geom_errorbar(aes(ymin = psrf_mean - psrf_mean_SE, ymax = psrf_mean + psrf_mean_SE), alpha = 0.1) +
+  geom_line(color = "blue") +
+  geom_point(color = "blue") +
+  facet_grid(as.factor(prop) ~ mech) +
+  theme_classic()
+
+results %>% 
+  filter(term == coeff, .it > 0, .it < maxit + 1) %>% 
+  ggplot(aes(x = .it, y = ac_sd)) +
+  geom_hline(yintercept = 0, color = "black") +
+  geom_errorbar(aes(ymin = ac_sd - ac_sd_SE, ymax = ac_sd + ac_sd_SE), alpha = 0.1) +
+  geom_line(color = "blue") +
+  geom_point(color = "blue") +
+  facet_grid(as.factor(prop) ~ mech) +
+  theme_classic()
+
+results %>% 
+  filter(term == coeff, .it > 0, .it < maxit + 1) %>% 
+  ggplot(aes(x = .it, y = psrf_sd)) +
+  geom_hline(yintercept = 1, color = "black") +
+  geom_errorbar(aes(ymin = psrf_sd - psrf_sd_SE, ymax = psrf_sd + psrf_sd_SE), alpha = 0.1) +
   geom_line(color = "blue") +
   geom_point(color = "blue") +
   facet_grid(as.factor(prop) ~ mech) +
