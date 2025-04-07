@@ -17,8 +17,10 @@ set.seed(11)
 # parameters
 n_sim <- 10
 n_obs <- 200
-corr <- 0.5
-betas <- c(1, 1, -1, -1)
+n_col <- 4
+corr <- 0.3
+beta <- 0.6
+betas <- rep(beta, n_col)
 mis_pat <- create_patterns()
 mis_mech = c("MCAR", "MAR")
 mis_prop = c(0.25, 0.5, 0.75)
@@ -79,6 +81,40 @@ results_raw <- replicate(
 # # save raw results
 # saveRDS(results_raw, "./Results/raw.RDS")
 
+####################
+### RUN PARALLEL ###
+####################
+
+library(pbapply)
+
+cl <- parallel::makeCluster(4)
+parallel::clusterExport(
+  cl,
+  c("generate_complete",
+    "induce_missingness",
+    "create_data",
+    "apply_methods",
+    "apply_CCA",
+    "apply_MICE",
+    "evaluate_est",
+    "estimate_param",
+    "create_patterns",
+    "n_obs", "betas", "mis_pat", "mis_mech", "mis_prop",
+    "simulate_once",
+    "add_iteration"
+    
+    
+  )
+)
+
+out <- pbreplicate(n_sim, 
+                   simulate_once(n_obs, betas, mis_pat, mis_mech, mis_prop),
+                   cl = cl)
+
+parallel::stopCluster(cl)
+
+save(out, file = "results/out.RData")
+
 ########################
 ### EVALUATE RESULTS ###
 ########################
@@ -102,4 +138,28 @@ performance %>%
   group_by(method, mech, prop, .it, term) %>% 
   summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
 
+# plot results
+performance |>
+  filter(term == "X1", mech == "MCAR") |>
+  ggplot(aes(x = .it, y = bias)) +
+  geom_smooth() +
+  geom_point() +
+  labs(
+    title = "Bias of regression coefficient estimates",
+    x = "Iteration number",
+    y = "Bias"
+  ) +
+  theme_classic()
 
+# plot results
+performance |>
+  filter(term == "X1", mech == "MCAR") |>
+  ggplot(aes(x = .it, y = psrf_sd)) +
+  geom_smooth() +
+  geom_point() +
+  labs(
+    title = "Bias of regression coefficient estimates",
+    x = "Iteration number",
+    y = "PSRF (parameter = SD)"
+  ) +
+  theme_classic()

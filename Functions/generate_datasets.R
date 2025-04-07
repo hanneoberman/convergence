@@ -23,11 +23,13 @@ generate_complete <- function(
 }
 
 # generate multivariate missingness patterns patterns
-create_patterns <- function() {
-  mis_pat <-
-    expand.grid(c(0, 1), c(0, 1), c(0, 1), c(0, 1), c(0, 1)) %>%
-    setNames(., c("Y", "X1", "X2", "X3", "X4")) %>%
-    .[rowSums(.) > 1 & rowSums(.) < 5, ]
+create_patterns <- function(n_col) {
+  pat_list <- vector(mode = "list", length = n_col + 1)
+  pat_list <- lapply(pat_list, \(x) {x <- c(0, 1)})
+  mis_pat <- expand.grid(pat_list) 
+  names(mis_pat) <- c("Y", paste0("X", 1:n_col))
+  # omit patterns with all/none missing
+  mis_pat <- mis_pat[rowSums(mis_pat) > 1 & rowSums(mis_pat) < n_col + 1, ]
   return(mis_pat)
 }
 
@@ -45,7 +47,7 @@ induce_missingness <- function(
       # ampute the data
       mice::ampute(dat, patterns = mis_pat, mech = mm, prop = mp) 
     }) 
-  }) %>% 
+  }) |> 
     # unlist just make sure the proportions 
     # are not nested within the meachnisms
     unlist(recursive = FALSE)

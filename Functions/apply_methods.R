@@ -3,15 +3,14 @@
 # complete case analysis
 apply_CCA <- function(amp) {
   # list-wise deletion
-  est <- na.omit(amp$amp) %>% 
-    # fit regression 
-    lm(Y ~ X1 + X2 + X3 + X4, .) %>% 
+  est <- # fit regression 
+    lm(Y ~ X1 + X2 + X3 + X4, data = na.omit(amp$amp)) |> 
     # clean results
-    broom::tidy(conf.int = TRUE) %>% 
+    broom::tidy(conf.int = TRUE) |> 
     # choose estimates
-    select(term, estimate, conf.low, conf.high) %>% 
-    # add method name and missingness
-    cbind(method = "CCA", mech = amp$mech, prop = amp$prop, .it = 0, ., ac_mean = NA, psrf_mean = NA, ac_sd = NA, psrf_sd = NA) 
+    select(term, estimate, conf.low, conf.high)
+  # add method name and missingness
+  est <- cbind(method = "CCA", mech = amp$mech, prop = amp$prop, .it = 0, est, ac_mean = NA, psrf_mean = NA, ac_sd = NA, psrf_sd = NA)
   # rename "(Intercept)" to "Y" for easier processing
   est[est$term == "(Intercept)", "term"] <- "Y"
   # output
@@ -51,11 +50,11 @@ apply_MICE <- function(amp, n_it) {
 # internal function to calculate pooled regression estimates
 estimate_param <- function(imp) {
   # run analysis on all imputations
-  est <- with(imp, lm(Y ~ X1 + X2 + X3 + X4)) %>% 
+  est <- with(imp, lm(Y ~ X1 + X2 + X3 + X4)) |> 
     # pool results
-    mice::pool() %>% 
+    mice::pool() |> 
     # clean results
-    broom::tidy(conf.int = TRUE) %>% 
+    broom::tidy(conf.int = TRUE) |> 
     # select estimates
     select(term, estimate, conf.low, conf.high)
   # rename "(Intercept)" to "Y" for easier processing
@@ -77,12 +76,13 @@ add_iteration <- function(implist) {
 # combine into one function
 apply_methods <- function(amps, betas, n_it) {
   # apply CCA to each incomplete dataset
-  CCA <- purrr::map_dfr(amps, ~{apply_CCA(.)})
+  CCA <- purrr::map_dfr(amps, ~{apply_CCA(.x)})
   # impute with MICE and estimate effects
-  MICE <-  purrr::map_dfr(amps, ~{apply_MICE(., n_it)})
+  MICE <- purrr::map_dfr(amps, ~{apply_MICE(.x, n_it)})
   # combine estimates 
-  ests <- rbind(CCA, MICE) %>% 
+  ests <- rbind(CCA, MICE) |> 
     cbind(truth = c(0, betas))
+  row.names(ests) <- NULL
   # output
   return(ests)
 }
