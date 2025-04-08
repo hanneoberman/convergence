@@ -21,7 +21,7 @@ n_col <- 4
 corr <- 0.3
 beta <- 0.6
 betas <- rep(beta, n_col)
-mis_pat <- create_patterns()
+mis_pat <- create_patterns(n_col)
 mis_mech = c("MCAR", "MAR")
 mis_prop = c(0.25, 0.5, 0.75)
 n_it <- 10
@@ -72,12 +72,12 @@ simulate_once <- function(n_obs, betas, mis_pat, mis_mech, mis_prop) {
 ### RUN SIMULATION ###
 ######################
 
-# repeat the simulation function n_sim times
-results_raw <- replicate(
-  n_sim, 
-  simulate_once(n_obs, betas, mis_pat, mis_mech, mis_prop),
-  simplify = FALSE
-  )
+# # repeat the simulation function n_sim times
+# results_raw <- replicate(
+#   n_sim, 
+#   simulate_once(n_obs, betas, mis_pat, mis_mech, mis_prop),
+#   simplify = FALSE
+#   )
 # # save raw results
 # saveRDS(results_raw, "./Results/raw.RDS")
 
@@ -101,41 +101,43 @@ parallel::clusterExport(
     "create_patterns",
     "n_obs", "betas", "mis_pat", "mis_mech", "mis_prop",
     "simulate_once",
-    "add_iteration"
-    
+    "add_iteration",
+    "n_it", "n_sim", "n_col", "corr", "beta", "betas", "mis_pat", "mis_mech", "mis_prop"
     
   )
 )
 
 out <- pbreplicate(n_sim, 
                    simulate_once(n_obs, betas, mis_pat, mis_mech, mis_prop),
-                   cl = cl)
+                   cl = cl, 
+                   simplify = FALSE)
 
 parallel::stopCluster(cl)
 
-save(out, file = "results/out.RData")
+save(out, file = "out.RData")
 
 ########################
 ### EVALUATE RESULTS ###
 ########################
 
 # calculate bias, coverage rate and CI width
-performance <- evaluate_est(results_raw)
-# saveRDS(performance, "./Results/performance.RDS")
+# performance <- evaluate_est(results_raw)
+# # saveRDS(performance, "./Results/performance.RDS")
+performance <- evaluate_est(out)
 
 # simulation results across all conditions
-performance %>% 
-  group_by(method, .it) %>% 
+performance |> 
+  group_by(method, .it) |> 
   summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
 
 # simulation results split by condition
-performance %>% 
-  group_by(method, mech, prop, .it) %>% 
+performance |> 
+  group_by(method, mech, prop, .it) |> 
   summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
 
 # simulation results split by condition and regression coefficient
-performance %>% 
-  group_by(method, mech, prop, .it, term) %>% 
+performance |> 
+  group_by(method, mech, prop, .it, term) |> 
   summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
 
 # plot results

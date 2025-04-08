@@ -3,7 +3,7 @@
 
 evaluate_est <- function(results) {
   performance <- purrr::map_dfr(results, ~{
-    mutate(.x,
+    dplyr::mutate(.x,
       bias = truth - estimate,
       cov = conf.low <= truth & conf.high >= truth,
       ciw = conf.high - conf.low,

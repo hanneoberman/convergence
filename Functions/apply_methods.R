@@ -8,7 +8,7 @@ apply_CCA <- function(amp) {
     # clean results
     broom::tidy(conf.int = TRUE) |> 
     # choose estimates
-    select(term, estimate, conf.low, conf.high)
+    dplyr::select(term, estimate, conf.low, conf.high)
   # add method name and missingness
   est <- cbind(method = "CCA", mech = amp$mech, prop = amp$prop, .it = 0, est, ac_mean = NA, psrf_mean = NA, ac_sd = NA, psrf_sd = NA)
   # rename "(Intercept)" to "Y" for easier processing
@@ -56,7 +56,7 @@ estimate_param <- function(imp) {
     # clean results
     broom::tidy(conf.int = TRUE) |> 
     # select estimates
-    select(term, estimate, conf.low, conf.high)
+    dplyr::select(term, estimate, conf.low, conf.high)
   # rename "(Intercept)" to "Y" for easier processing
   est[est$term == "(Intercept)", "term"] <- "Y"
   # output
