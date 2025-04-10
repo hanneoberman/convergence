@@ -1,5 +1,22 @@
 # functions to apply missing data methods
 
+# comparative truth, fully observed data
+apply_full <- function(amp) {
+  # list-wise deletion
+  est <- # fit regression 
+    lm(Y ~ X1 + X2 + X3 + X4, data = amp$data) |> 
+    # clean results
+    broom::tidy(conf.int = TRUE) |> 
+    # choose estimates
+    dplyr::select(term, estimate, conf.low, conf.high)
+  # add method name and missingness
+  est <- cbind(method = "full", mech = amp$mech, prop = amp$prop, .it = 0, est, ac_mean = NA, psrf_mean = NA, ac_sd = NA, psrf_sd = NA)
+  # rename "(Intercept)" to "Y" for easier processing
+  est[est$term == "(Intercept)", "term"] <- "Y"
+  # output
+  return(est)
+}
+
 # complete case analysis
 apply_CCA <- function(amp) {
   # list-wise deletion
@@ -75,12 +92,14 @@ add_iteration <- function(implist) {
 
 # combine into one function
 apply_methods <- function(amps, betas, n_it) {
+  # comparative truth on complete dataset
+  full <- purrr::map_dfr(amps, ~{apply_full(.x)})
   # apply CCA to each incomplete dataset
   CCA <- purrr::map_dfr(amps, ~{apply_CCA(.x)})
   # impute with MICE and estimate effects
   MICE <- purrr::map_dfr(amps, ~{apply_MICE(.x, n_it)})
   # combine estimates 
-  ests <- rbind(CCA, MICE) |> 
+  ests <- rbind(full, CCA, MICE) |> 
     cbind(truth = c(0, betas))
   row.names(ests) <- NULL
   # output
@@ -103,4 +122,27 @@ apply_methods <- function(amps, betas, n_it) {
 # collect_theta <- function(imp) {
 #  a <-  mice::complete(imp, "all")
 #  purrr::map_dbl(a, ~{princomp(., cor = TRUE) %>% .$sdev %>% .[1] %>% . ^ 2})
+# }
+
+# multivar_metrics <- function(implist){
+# # compute AC
+# ac <-
+#   purrr::map(vrbs, function(.vrb) {
+#     c(NA, dplyr::cummean(dplyr::coalesce(
+#       purrr::map_dbl(2:t, function(.itr) {
+#         suppressWarnings(stats::cor(
+#           param[[.vrb]][.itr - 1, ],
+#           param[[.vrb]][.itr, ],
+#           use = "pairwise.complete.obs"
+#         ))
+#       }), 0
+#     ))) + 0 * param[[.vrb]][, 1]
+#   })
+# 
+# # compute PSRF
+# psrf <- purrr::map_dfr(param, ~ {
+#   purrr::map_dfr(1:t, function(.itr) {
+#     data.frame(psrf = rstan::Rhat(.[1:.itr, ]))
+#   })
+# })
 # }

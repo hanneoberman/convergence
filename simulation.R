@@ -15,7 +15,7 @@ miceadds::source.all("./functions")
 set.seed(11)
 
 # parameters
-n_sim <- 10
+n_sim <- 100
 n_obs <- 200
 n_col <- 4
 corr <- 0.3
@@ -66,7 +66,7 @@ simulate_once <- function(n_obs, betas, mis_pat, mis_mech, mis_prop) {
 # ### TEST SIMULATION FUNCTION ###
 # ################################
 # 
-# ests <- simulate_once(n_obs, betas, mis_mech, mis_prop)
+# ests <- simulate_once(n_obs, betas, mis_pat, mis_mech, mis_prop)
 
 ######################
 ### RUN SIMULATION ###
@@ -94,6 +94,7 @@ parallel::clusterExport(
     "induce_missingness",
     "create_data",
     "apply_methods",
+    "apply_full",
     "apply_CCA",
     "apply_MICE",
     "evaluate_est",

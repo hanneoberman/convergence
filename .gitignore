@@ -41,3 +41,6 @@ vignettes/*.pdf
 
 # large results files
 Results/*.RDS
+
+# msc thesis files
+thesis/
