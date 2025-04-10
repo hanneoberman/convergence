@@ -5,6 +5,7 @@ abstract: "Iterative imputation has become the de facto standard to accommodate 
 # keywords: "missing data, iterative imputation, non-convergence, MICE"
 # bibliography: references.bib
 bibliography: references.bib
+format: pdf
 ---
 
 ```{r setup, echo=FALSE, message=FALSE, warning=FALSE}

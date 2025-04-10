@@ -9,13 +9,13 @@ library(mice)
 library(miceadds)
 
 # functions
-miceadds::source.all("./functions")
+miceadds::source.all("./R")
 
 # randomness
 set.seed(11)
 
 # parameters
-n_sim <- 100
+n_sim <- 2
 n_obs <- 200
 n_col <- 4
 corr <- 0.3
@@ -24,7 +24,7 @@ betas <- rep(beta, n_col)
 mis_pat <- create_patterns(n_col)
 mis_mech = c("MCAR", "MAR")
 mis_prop = c(0.25, 0.5, 0.75)
-n_it <- 10
+n_it <- 50
 
 # #################################
 # ### TEST LOWER LEVEL FUCTIONS ###
@@ -115,7 +115,7 @@ out <- pbreplicate(n_sim,
 
 parallel::stopCluster(cl)
 
-save(out, file = "out.RData")
+save(out, file = "results/out.RData")
 
 ########################
 ### EVALUATE RESULTS ###
