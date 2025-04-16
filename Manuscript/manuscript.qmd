@@ -12,9 +12,35 @@ format: pdf
 library(mice)
 library(ggmice)
 library(ggplot2)
+library(dplyr)
+load("../results/out.RData")
+source("../R/evaluate_estimates.R")
+performance <- evaluate_est(out)
+performance[performance$term == "Y", "term"] <- "b0"
+results <- # simulation results split by condition and regression coefficient
+performance |> 
+  group_by(method, mech, prop, .it, term) |> 
+  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), \(x) mean(x, na.rm = TRUE))) |>
+  mutate(mech = factor(mech, levels = c("MCAR", "MAR"), ordered = TRUE),
+         prop = factor(prop),
+         term = factor(term))
 ```
 
-# Abstract (old) 
+
+```{r, echo=FALSE}
+# # plot results per sim rep
+# performance |>
+#   filter(term == "X1", mech == "MAR", method == "MICE", prop == 0.75) |>
+#   ggplot(aes(x = .it, y = bias)) + #, color = as.factor(prop)
+#   geom_line(aes(group = .sim)) +
+#   geom_smooth(method = "loess") +
+#   # labs(
+#   #   title = "Bias regression coefficient",
+#   #   x = "Iteration number",
+#   #   y = "Bias"
+#   # ) +
+#   theme_classic()
+```
 
 # Introduction (new-ish)
 
@@ -93,6 +119,26 @@ plot_trace(nonconv, "hgt")
 - how many iterations are needed before valid inferences are reached?
 
 
+```{r}
+results |>
+  filter(method == "MICE") |> #, prop == 0.75 mech == "MAR",
+  ggplot(aes(x = .it, y = bias, color = prop)) +
+  geom_hline(yintercept = 0, alpha = 0.1) + 
+  geom_line() +
+  facet_grid(term ~ mech) +
+  theme_classic()
+
+results |>
+  filter(method == "MICE") |> #, prop == 0.75 mech == "MAR",
+  ggplot(aes(x = .it, y = psrf_mean, color = prop)) +
+  geom_hline(yintercept = 1, alpha = 0.1) + 
+  geom_line() +
+  facet_grid(term ~ mech) +
+  theme_classic()
+
+```
+
+  
 # Introduction (old)
 
 Anyone who analyzes person-data may run into a missing data problem. Missing data is not only ubiquitous across science, but treating it can also be a tedious task. If a dataset contains just one incomplete observation, calculations are not defined, and statistical models cannot be fitted to the data. To circumvent this, many statistical packages employ list-wise deletion by default (i.e., ignoring incomplete observations). Unfortunately, this *ad hoc* solution may yield invalid results [@buur18]. An alternative is to apply imputation. With imputation, we 'fill in' the missing values in an incomplete dataset. Subsequently, the model of scientific interest can be fitted to the completed dataset. By repeating this process several times, a distribution of plausible results may be obtained, which reflects the uncertainty in the data due to missingness. This technique is known as 'multiple imputation' [MI; @rubin76]. MI has proven to be a powerful tool to draw valid inferences from incomplete data under many circumstances [@buur18]. 
@@ -264,27 +310,28 @@ The assumption inherent to the early stopping conditions is that terminating the
 
 ## Set-up
 
-We investigate non-convergence of the MICE algorithm through model-based simulation in `R` [version 3.6.3; @R]. The number of simulation repetitions is 1000, and the simulation set-up is summarized in the pseudo-code below. The complete `R` script of the simulation study is available from [github.com/hanneoberman/MissingThePoint](https://github.com/hanneoberman/MissingThePoint). 
+We investigate non-convergence of the MICE algorithm through model-based simulation in `R` [version 4.4.2; @R]. The number of simulation repetitions is 2000, and the simulation set-up is summarized in the pseudo-code below. The complete `R` script of the simulation study is available from [github.com/hanneoberman/MissingThePoint](https://github.com/hanneoberman/MissingThePoint) [TODO: make Zenodo DOI]. 
 
 ```
 # pseudo-code of simulation 
-1. simulate data 
-for (number of simulation runs from 1 to 1000)
- for (proportion of missing cases between 5% and 95%)
-  2. create missingness
-  for (number of iterations from 1 to 100)
-   3. impute missingness
-   4. perform analysis of scientific interest
-   5. compute non-convergence diagnostics 
-   6. pool results across imputations
-   7. compute performance measures
- 8. combine outcomes of all conditions
-9. aggregate outcomes across simulation runs
-
+for (number of simulation runs) {
+  1. simulate complete data 
+  for (missingness conditions) {
+    2. create missingness
+    for (number of iterations) {
+      3. impute missingness
+      4. estimate quantities of scientific interest
+      5. apply performance measures to the estimates
+      6. compute non-convergence diagnostics
+    }
+  }
+7. aggregate outcomes across simulation runs
 ```
+
 ### Data-generating mechanism.
 
-In this study, sampling variance is not of interest. Therefore, a single complete dataset may serve as comparative truth in all simulation repetitions [@vink14]. The data-generating mechanism is a multivariate normal distribution, representing person-data on three predictor variables in a multiple linear regression problem. Let the predictor space be defined as 
+The data-generating mechanism is a multivariate normal distribution, representing person-data on three predictor variables in a multiple linear regression problem. Let the predictor space be defined as 
+
 $$
 \begin{aligned}
 \begin{pmatrix}X_1\\
@@ -293,40 +340,104 @@ X_3
 \end{pmatrix} \sim \mathcal{N}
 \begin{bmatrix}
 \begin{pmatrix}
-12\\
-3\\
-0.5
+0\\
+0\\
+0
 \end{pmatrix}\!\!,
 \begin{pmatrix}
-4 & 4 & 1.8 \\
-4 & 16 & 4.8\\
-1.8 & 4.8 & 9
+1 & 0.5 & 0.5 \\
+0.5 & 1 & 0.5 \\
+0.5 & 0.5 & 1
 \end{pmatrix}
 \end{bmatrix}\!\!\text{.}\\[2\jot]
 \end{aligned}
 $$
-A finite population of $N=1000$ is simulated using the `mvtnorm` package [@mvtnorm]. Subsequently, a fourth variable is constructed as outcome variable $Y$. For each unit $i = 1, 2,..., N$, let 
-$$
-Y_i = 1 + 2X_{1i} +.5X_{2i} - X_{3i} + \epsilon_i ,
-$$
-where $\epsilon \sim \mathcal{N}(0, 100)$. This results in a dataset $y$, where $y_{\mathrm mis} = \emptyset$. In other words, $y$ contains the complete set of observations for all units $i$ on all variables $j$ (where $j =  Y, X_1, X_2, X_3$). From the complete dataset we obtain the true values of the scientific estimands $Q$. 
 
+In each simulation repetition, a finite population of $N=1000$ is simulated using the `mvtnorm` package [@mvtnorm]. Subsequently, a fourth variable is constructed as outcome variable $Y$. For each unit $i = 1, 2,..., N$, let 
 
+$$
+Y_i = X_{1i} + X_{2i} + X_{3i} + \epsilon_i ,
+$$
+where $\epsilon \sim \mathcal{N}(0, 1)$. This results in a dataset $y$, where $y_{\mathrm mis} = \emptyset$. In other words, $y$ contains the complete set of observations for all units $i$ on all variables $j$ (where $j =  Y, X_1, X_2, X_3$).  
 
 ### Scientific estimands.
 
-We consider four types of $Q$s that are often of interest in empirical research. Namely, two descriptive statistics: the mean $\mu_j$ and standard deviation $\sigma_j$ of each variable $j$. We also consider the regression coefficients of the predictors: $\beta_1$, $\beta_2$, and $\beta_3$ in regression equation
-$$Y' = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_3,$$
-where $Y'$ is the expected value of the outcome. The final estimand is the proportion of variance explained by the set of predictors: coefficient of determination $r^2$ (note that lower case $r$ is used to avoid confusion with non-convergence diagnostic $\widehat{R}$). The scientific estimands are estimated by $\bar{Q}$ in each simulation condition.
+We consider four multivariate quantities of scientific interest ($Qs$). Namely, the regression coefficients of the analysis model, 
 
+$$Y' = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_3,$$
+where $Y'$ is the expected value of the outcome. From the data-generating mechanism, we obtain the true values of the scientific estimands: $\beta_0 = 0$, $\beta_1 = \beta_2 = \beta_3 = 1$. The scientific estimands are estimated by $\bar{Q}$ in each simulation condition.
+
+<!-- The final estimand is the proportion of variance explained by the set of predictors: coefficient of determination $r^2$ (note that lower case $r$ is used to avoid confusion with non-convergence diagnostic $\widehat{R}$). -->
 
 ### Simulation conditions.
 
-In each simulation repetition, we *ampute* the complete dataset conform the missingness conditions. The proportion of incomplete cases $p_{\mathrm inc}$ varies between 5% and 95%, in incremental steps ($p_{\mathrm inc}$ = .05, .25, .50, .75, .95). We consider all possible univariate and multivariate patterns of missingness, conform a 'missing completely at random' missingness mechanism [MCAR; @rubin87]. I.e., the probability to be missing is the same for all $N \times k$ cells in $y$, conditional on $p_{\mathrm inc}$. We use the 'mice' package [function `mice::ampute()`; @mice] to obtain an incomplete dataset {$y_{\mathrm obs}, y_{\mathrm mis}$} for each of the five missingness conditions. 
+We consider two sets of simulation conditions, 'missingness conditions' and 'early stopping' conditions. The simulation study is a fully factorial design, as visualized in Table XYZ.
+
+In each simulation repetition, we *ampute* the complete dataset conform six missingness conditions: two missing data mechanisms and three proportions of incomplete cases. The missing data mechanisms are 'missing completely at random' [MCAR; @rubin87], where the probability to be missing is the same for all $N \times k$ cells in $y$, and a right-tailed 'missing at random' (MAR) mechanism, where the probability to be missing is a function of the observed data and higher values are more likely to be missing. The proportion of incomplete cases $p_{\mathrm inc}$ is set to 25%, 50%, and 75%. 
+
+<!-- Table -->
+<!-- mechanisms: MCAR, MAR -->
+<!-- proportion of incomplete cases: 25%, 50%, 75% -->
+
+
+<!-- \begin{table}[] -->
+<!-- \begin{tabular}{lllll} -->
+<!-- \hline -->
+<!-- Missingness &  &                 &  & Early stopping            \\ \cline{1-3} \cline{5-5}  -->
+<!-- Mechanism   &  & Proportion      &  & Iteration number          \\ \cline{1-1} \cline{3-3} \cline{5-5}  -->
+<!-- MCAR, MAR   &  & 0.25, 0.5, 0.75 &  & 1, 2, 3, ..., 98, 99, 100 \\ \hline -->
+<!-- \end{tabular} -->
+<!-- \end{table} -->
+
+$$
+\begin{aligned}
+\hline
+&\mathrm{Missingness \ conditions} & & & &\mathrm{Early \ stopping \ conditions} \\
+\hline
+&\begin{matrix}
+\mathrm{MCAR} \\
+\mathrm{MAR \ } 
+\end{matrix}
+\quad
+&\times
+\quad
+&\begin{matrix}
+25\% \\
+50\% \\
+75\%
+\end{matrix}
+\quad
+&\times
+\quad
+&\begin{matrix}
+1 \\
+2 \\
+... \\
+99 \\
+100 \\
+\end{matrix} \\
+&\mathrm{mechansim} &&\mathrm{incomplete \ cases} &&\mathrm{iteration(s)} \\
+\hline
+\end{aligned}
+$$
+
+We consider all possible multivariate patterns of missingness, as visualized in Figure \ref{fig:patterns}. 
+
+
+```{r patterns, echo=FALSE, eval=FALSE}
+source("../R/generate_datasets.R")
+pat <- create_patterns(3)
+d <- dat[1:10,]
+is.na(d) <- pat == 1
+d
+ggmice::plot_pattern(d)
+```
+
+We use the 'mice' package [function `mice::ampute()`; @mice] to obtain an incomplete dataset {$y_{\mathrm obs}, y_{\mathrm mis}$} for each of the six missingness conditions. 
 
 We impute the missing values in {$y_{\mathrm obs}, \dot y_{\mathrm mis}$} according to the early stopping conditions. That is, we vary the number of iterations in the imputation algorithm between one and one hundred ($T = 1,2,.,100$). All imputation procedures are performed using `mice` [function `mice()`; @mice], with Bayesian linear regression imputation, and five imputation chains ($m=5$). This results in $m=5$ sets of imputations for each of the one hundred early stopping conditions, $\dot y_{\mathrm imp, \ell}$. 
 
-Subsequently, we obtain the completed data per imputation, {$y_{\mathrm obs}, \dot y_{\mathrm imp, \ell}$}, by combining the imputed data with the observed data [function `mice::complete()`; @mice]. We estimate univariate $Q$s directly from the completed data, by averaging across imputations to obtain $\bar{Q}$. Estimates of multivariate $Q$s are obtained after performing multiple linear regression [function `stats::lm()`, @R]. We pool the resulting estimates, $\hat{Q}_\ell$, into a single $\bar{Q}$ conform @vink14.
+Subsequently, we obtain the completed data per imputation, {$y_{\mathrm obs}, \dot y_{\mathrm imp, \ell}$}, by combining the imputed data with the observed data [function `mice::complete()`; @mice]. Estimates of scientific quantities $Q$s are obtained after performing multiple linear regression [function `stats::lm()`, @R]. We pool the resulting $m$ estimates, $\hat{Q}_\ell$, into a single $\bar{Q}$ conform Rubin's rules [function `mice::pool()`; @mice].
 
 
 ### Methods.
