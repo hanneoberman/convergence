@@ -56,7 +56,7 @@ ggplot2::ggplot(long[long$.ms == "mean", ],
                   color = as.factor(.data$.m)
                 )) + ggplot2::geom_line(linewidth = 0.6) +
   ggplot2::geom_hline(yintercept = -Inf) + 
-  ggplot2::labs(x = "Iteration", y = "Imputation parameter", color = "") + 
+  ggplot2::labs(x = "Iteration number", y = "Average imputed value", color = "") + 
   ggplot2::theme_classic() + 
   ggplot2::theme(legend.position = "none")
 }
