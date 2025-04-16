@@ -4,7 +4,7 @@
 apply_full <- function(amp) {
   # list-wise deletion
   est <- # fit regression 
-    lm(Y ~ X1 + X2 + X3 + X4, data = amp$data) |> 
+    lm(Y ~ ., data = amp$data) |> 
     # clean results
     broom::tidy(conf.int = TRUE) |> 
     # choose estimates
@@ -12,7 +12,7 @@ apply_full <- function(amp) {
   # add method name and missingness
   est <- cbind(method = "full", mech = amp$mech, prop = amp$prop, .it = 0, est, ac_mean = NA, psrf_mean = NA, ac_sd = NA, psrf_sd = NA)
   # rename "(Intercept)" to "Y" for easier processing
-  est[est$term == "(Intercept)", "term"] <- "Y"
+  est[est$term == "(Intercept)", "term"] <- "b0"
   # output
   return(est)
 }
@@ -21,7 +21,7 @@ apply_full <- function(amp) {
 apply_CCA <- function(amp) {
   # list-wise deletion
   est <- # fit regression 
-    lm(Y ~ X1 + X2 + X3 + X4, data = na.omit(amp$amp)) |> 
+    lm(Y ~ ., data = na.omit(amp$amp)) |> 
     # clean results
     broom::tidy(conf.int = TRUE) |> 
     # choose estimates
@@ -29,7 +29,7 @@ apply_CCA <- function(amp) {
   # add method name and missingness
   est <- cbind(method = "CCA", mech = amp$mech, prop = amp$prop, .it = 0, est, ac_mean = NA, psrf_mean = NA, ac_sd = NA, psrf_sd = NA)
   # rename "(Intercept)" to "Y" for easier processing
-  est[est$term == "(Intercept)", "term"] <- "Y"
+  est[est$term == "(Intercept)", "term"] <- "b0"
   # output
   return(est)
 }
@@ -67,7 +67,7 @@ apply_MICE <- function(amp, n_it) {
 # internal function to calculate pooled regression estimates
 estimate_param <- function(imp) {
   # run analysis on all imputations
-  est <- with(imp, lm(Y ~ X1 + X2 + X3 + X4)) |> 
+  est <- purrr::map(mice::complete(imp, "all"), ~{lm(Y ~ ., data = .x)}) |> 
     # pool results
     mice::pool() |> 
     # clean results
@@ -75,7 +75,7 @@ estimate_param <- function(imp) {
     # select estimates
     dplyr::select(term, estimate, conf.low, conf.high)
   # rename "(Intercept)" to "Y" for easier processing
-  est[est$term == "(Intercept)", "term"] <- "Y"
+  est[est$term == "(Intercept)", "term"] <- "b0"
   # output
   return(est)
 }
