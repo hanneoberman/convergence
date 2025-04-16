@@ -15,23 +15,23 @@ miceadds::source.all("./R")
 set.seed(11)
 
 # parameters
-n_sim <- 2
+n_sim <- 100
 n_obs <- 200
-n_col <- 4
-corr <- 0.3
-beta <- 0.6
+n_col <- 3
+corr <- 0.5
+beta <- 1
 betas <- rep(beta, n_col)
 mis_pat <- create_patterns(n_col)
 mis_mech = c("MCAR", "MAR")
 mis_prop = c(0.25, 0.5, 0.75)
-n_it <- 50
+n_it <- 100
 
 # #################################
 # ### TEST LOWER LEVEL FUCTIONS ###
 # #################################
 # 
 # # generate data
-# dat <- generate_complete(n_obs, corr, betas)
+# dat <- generate_complete(n_obs, n_col, corr, betas)
 # 
 # # ampute data
 # amps <- induce_missingness(dat, mis_pat, mis_mech = "MAR", mis_prop = 0.5)
@@ -115,54 +115,6 @@ out <- pbreplicate(n_sim,
 
 parallel::stopCluster(cl)
 
+out <- purrr::map(1:length(out), ~{cbind(.sim = .x, out[[.x]])}) 
+save(out, file = paste0("results/out", length(out), "sim", max(out[[1]]$.it), "it", ".RData"))
 save(out, file = "results/out.RData")
-
-########################
-### EVALUATE RESULTS ###
-########################
-
-# calculate bias, coverage rate and CI width
-# performance <- evaluate_est(results_raw)
-# # saveRDS(performance, "./Results/performance.RDS")
-performance <- evaluate_est(out)
-
-# simulation results across all conditions
-performance |> 
-  group_by(method, .it) |> 
-  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
-
-# simulation results split by condition
-performance |> 
-  group_by(method, mech, prop, .it) |> 
-  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
-
-# simulation results split by condition and regression coefficient
-performance |> 
-  group_by(method, mech, prop, .it, term) |> 
-  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), mean, na.rm = TRUE))
-
-# plot results
-performance |>
-  filter(term == "X1", mech == "MCAR") |>
-  ggplot(aes(x = .it, y = bias)) +
-  geom_smooth() +
-  geom_point() +
-  labs(
-    title = "Bias of regression coefficient estimates",
-    x = "Iteration number",
-    y = "Bias"
-  ) +
-  theme_classic()
-
-# plot results
-performance |>
-  filter(term == "X1", mech == "MCAR") |>
-  ggplot(aes(x = .it, y = psrf_sd)) +
-  geom_smooth() +
-  geom_point() +
-  labs(
-    title = "Bias of regression coefficient estimates",
-    x = "Iteration number",
-    y = "PSRF (parameter = SD)"
-  ) +
-  theme_classic()
