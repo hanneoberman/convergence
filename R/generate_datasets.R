@@ -1,20 +1,16 @@
 # functions to create incomplete datasets
 
 # generate complete data
-generate_complete <- function(
-    n_obs = 200,
-    corr = 0.3,
-    betas = c(-0.5,-0.1, 0.1, 0.5)
-) {
+generate_complete <- function(n_obs, n_col, corr, betas) {
   # create variance-covariance matrix with moderate correlations
-  vcov <- matrix(0.3, nrow = 4, ncol = 4)
+  vcov <- matrix(corr, nrow = n_col, ncol = n_col)
   diag(vcov) <- 1
   # create predictor space data
   X <- mvtnorm::rmvnorm(n = n_obs, sigma = vcov)
   # multiply each predictor observation by the corresponding beta
   Y <- X %*% betas
   # generate residual error for each observation
-  e <- rnorm(n_obs)
+  e <- rnorm(n_obs, mean = 0, sd = 1)
   # combine predictors and outcome plus residual
   dat <- data.frame(Y = Y + e,
                     X)
@@ -59,13 +55,13 @@ induce_missingness <- function(
 create_data <- function(
     sample_size = 200, 
     correlations = 0.3,
-    effects = c(-0.5,-0.1, 0.1, 0.5),
+    effects = c(0.5, 0.5, 0.5),
     patterns = NULL, 
     mechanisms = c("MCAR", "MAR"),
     proportions = c(0.1, 0.25, 0.5)
 ) {
   # create a single complete dataset
-  dat <- generate_complete(n_obs = sample_size, corr = correlations, betas = effects)
+  dat <- generate_complete(n_obs = sample_size, n_col = length(effects), corr = correlations, betas = effects)
   # ampute the data with different missingness
   amps <- induce_missingness(dat, mis_pat, mis_mech = mechanisms, mis_prop = proportions)
   # output
