@@ -4,8 +4,12 @@ author: "H. I. Oberman"
 abstract: "Iterative imputation has become the de facto standard to accommodate for the ubiquitous problem of missing data. While it is widely accepted that this technique can yield valid inferences, these inferences all rely on algorithmic convergence. Our study provides insight into identifying non-convergence in iterative imputation algorithms. We show that these algorithms can yield correct outcomes even when a converged state has not yet formally been reached. In the cases considered, inferential validity is achieved after five to ten iterations, much earlier than indicated by diagnostic methods. We conclude that it never hurts to iterate longer, but such calculations hardly bring added value."
 # keywords: "missing data, iterative imputation, non-convergence, MICE"
 # bibliography: references.bib
-bibliography: references.bib
+execute:
+  echo: false
+  message: false
+  warning: false
 format: pdf
+bibliography: references.bib
 ---
 
 ```{r setup, echo=FALSE, message=FALSE, warning=FALSE}
@@ -16,14 +20,14 @@ library(dplyr)
 load("../results/out.RData")
 source("../R/evaluate_estimates.R")
 performance <- evaluate_est(out)
-performance[performance$term == "Y", "term"] <- "b0"
+# performance[performance$term == "b0", "term"] <- "Y"
 results <- # simulation results split by condition and regression coefficient
 performance |> 
   group_by(method, mech, prop, .it, term) |> 
   summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), \(x) mean(x, na.rm = TRUE))) |>
   mutate(mech = factor(mech, levels = c("MCAR", "MAR"), ordered = TRUE),
-         prop = factor(prop),
-         term = factor(term))
+         prop = factor(prop, levels = c(0.25, 0.5, 0.75), ordered = TRUE),
+         term = factor(term, levels = c("Y", "X1", "X2", "X3"), ordered = TRUE))
 ```
 
 
@@ -58,6 +62,7 @@ In this study, we explore different methods for identifying non-convergence in i
 
 We investigate non-convergence in iterative imputation through model-based simulation in R (version 4.4.2; R Core Team 2024). We provide a summary of the simulation set-up in Algorithm 1; the complete script and technical details are available from [github.com/hanneoberman/MissingThePoint](https://github.com/hanneoberman/MissingThePoint) [TODO: make this a Zenodo DOI].
 
+
 **Algorithm 1: simulation set-up (pseudo-code)**
 
     for each simulation repetition 
@@ -76,17 +81,17 @@ We investigate non-convergence in iterative imputation through model-based simul
 
 ## Aims
 
-With this simulation, we assess the impact of non-convergence on the validity of scientific estimates obtained using the imputation package `{mice}` [@mice]. Inferential validity is reached when estimates are both unbiased and have nominal coverage across simulation repetitions ($n_{sim} = 1000$). To assess non-convergence, we terminate the imputation algorithm after a varying number of iterations ($n_{it} = 1, 2, ..., 50$). We differentiate between nine different missingness scenarios that are defined in the data generating mechanism. 
+With this simulation, we assess the impact of non-convergence on the validity of scientific estimates obtained using the imputation package `{mice}` [@mice]. Inferential validity is reached when estimates are both unbiased and have nominal coverage across simulation repetitions ($n_{sim} = 2000$). To assess non-convergence, we terminate the imputation algorithm after a varying number of iterations ($n_{it} = 1, 2, ..., 100$). We differentiate between nine different missingness scenarios that are defined in the data generating mechanism. 
 
 ## Data generating mechanism
 
-We generate one complete set of $n_{obs} = 1000$ cases in each simulation repetition. This set consists of three multivariately normal random variables, such that
+We generate a complete set of $n_{\mathrm{obs}} = 200$ cases in each simulation repetition. This set consists of three multivariately normal random variables, such that
 
 $$
 \begin{pmatrix}
-Y\\
 X_1\\
-X_2
+X_2\\
+X_3
 \end{pmatrix}
 \sim \mathcal{N}
 \begin{bmatrix}
@@ -96,26 +101,53 @@ X_2
 0
 \end{pmatrix},
 \begin{pmatrix}
-2     &       &  \\
+1     &       &  \\
 0.5   & 1     &  \\
--0.5  & 0.5   & 1
+0.5  & 0.5   & 1
 \end{pmatrix}
-\end{bmatrix}.
+\end{bmatrix},
 $$ 
+and an outcome variable $Y$ as a linear combination of the three predictors. For each unit $i = 1, 2,..., n_\mathrm{obs}$,
 
-The complete set is 'amputed' (i.e., made incomplete) according to nine missingness conditions. We use a $3 \times 3$ factorial design with three missingness mechanisms and three proportions of incomplete cases, see Figure XYZ. Missingness mechanisms refer to the probability of being missing for any given entry in a dataset. There are three distinct types of mechanisms, as defined by Rubin (1976). Roughly translated, the probability of being missing may be equal for all entries (MCAR; Missing Completely At Random), the probability of being missing depends on observed information (MAR; Missing At Random), or the probability depends on *un*observed information, making the missingness non-ignorable (MNAR; Missing Not At Random). [add left-tailed M(N)AR mechanism, md pattern, and maybe refer to ampute paper or "Dance of..." by Schouten 2018].
+$$
+Y_i = X_{1i} + X_{2i} + X_{3i} + \epsilon_i ,
+$$
+where $\epsilon \sim \mathcal{N}(0, 1)$. This results in a complete dataset all units $i$ on all variables $j$ (where $j =  Y, X_1, X_2, X_3$) in each simulation repetition. Multivariate normal data are generated using the `mvtnorm` package [@mvtnorm]. 
+
+Subsequently, the complete set is 'amputed' (i.e., made incomplete) according to six missingness conditions. We use a $2 \times 3$ factorial design with three missingness mechanisms and three proportions of incomplete cases, see Table XYZ. Missingness mechanisms refer to the probability of being missing for any given entry in a dataset. There are three distinct types of mechanisms, as defined by Rubin (1976). Roughly translated, the probability of being missing may be equal for all entries (MCAR; Missing Completely At Random), may depend on observed information (MAR; Missing At Random), or may depend on *un*observed information, making the missingness non-ignorable (MNAR; Missing Not At Random). [TODO: add left-tailed M(N)AR mechanism, md pattern, and maybe refer to ampute paper or "Dance of..." by Schouten 2018; TODO: add `ampute()`].
+
+\begin{table}[]
+\begin{tabular}{lcr}
+\hline
+\multicolumn{3}{l}{Missingness conditions} \\ \hline
+missing data mechanism &  & proportion of incomplete cases  \\
+                       & $\times$  &                         \\
+MCAR, MAR              &   & 25\%, 50\%, 75\%                \\ \hline
+\end{tabular}
+\end{table}
 
 ## Estimands
 
-We impute the missing data five times ($m = 5$) using Bayesian linear regression imputation with `mice` [@mice]. On each imputed dataset, we perform multiple linear regression as our analysis of scientific interest. We predict outcome variable $Y$ from the other two variables,
+We impute the missing data five times ($m = 5$) using Bayesian linear regression imputation with `mice` [@mice]. On each imputed dataset, we perform multiple linear regression as our analysis of scientific interest. We predict outcome variable $Y$ from the other variables,
 
 $$
-\hat{Y} = \beta_0 + \beta_1 X_1 + \beta_2 X_2,
+\hat{Y} = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_3,
 $$
 
-where $\hat{Y}$ is the predicted value of the outcome. Our estimands are the regression coefficient $\beta_1$ and coefficient of determination $\rho^2$ that we obtain after pooling the regression results across the imputations.
+where $\hat{Y}$ is the predicted value of the outcome. Our estimands are the regression coefficients $\boldsymbol{\beta}$, including the intercept $\beta_0$.
 
 ## Diagnostic methods
+
+
+\begin{table}[]
+\begin{tabular}{lcccr}
+\hline
+\multicolumn{5}{l}{Non-convergence diagnostics}   \\ \hline
+identifier                  &          & parameter                    &          & variable                 \\
+                            & $\times$ &                              & $\times$ &                          \\
+AC, $\widehat{R}$           &          & chain means, chain variances &          & $Y$, $X_1$, $X_2$, $X_3$ \\ \hline
+\end{tabular}
+\end{table}
 
 - non-convergence in iterative algorithms is diagnosed using an identifier and a parameter
 
@@ -129,60 +161,143 @@ where $\hat{Y}$ is the predicted value of the outcome. Our estimands are the reg
 
 - just to be sure, we also use autocorrelation to quantify trending within chains
 
-- we apply these identifiers to four different univariate and multivariate parameters 
+- we apply these identifiers to the two parameters that we typically evaluate after imputation using visual inspection: chain means and chain variances
 
-- the univariate parameters are those commonly used for visual inspection: chain means and chain variances
+We use two non-convergence identifiers---autocorrelation and $\widehat{R}$---to diagnose non-convergence in the imputation models of the four incomplete variables. For each variable we apply the two identifiers on two parameters---chain means and chain variances---and four variables, resulting in 16 sets of identifier-parameter-variable pairs.
 
-- one multivariate parameter that is of immediate interest for our estimand is the estimated value itself: regression coefficient beta_1
+$$
+\begin{aligned}
+\hline
+&\mathrm{Non-convergence \ diagnostics} & & & & \\
+\hline
+&\begin{matrix}
+\widehat{R} \\
+\mathrm{AC } 
+\end{matrix}
+\quad
+&\times
+\quad
+&\begin{matrix}
+\mathrm{chain \ means} \\
+\mathrm{chain \ variances} 
+\end{matrix}
+\quad
+&\times
+\quad
+&\begin{matrix}
+Y\\
+X_1\\
+X_2\\
+X_3
+\end{matrix} \\
+&\mathrm{identifier} &&\mathrm{parameter} &&\mathrm{variable} \\
+\hline
+\end{aligned}
+$$
 
-- we also propose a new multivariate parameter that is not dependent on the model of scientific interest: the first eigenvalue of the variance-covariance matrix of the completed data [explain!]
-
-We use eight different methods to diagnose non-convergence: a combination of two non-convergence identifiers---autocorrelation and $\widehat{R}$---and four parameters---chain means, chain variances, $\beta_1$, and $\lambda$.
 
 ## Performance measures
 
-As recommended by van Buuren, our performance measures are bias, confidence interval width, and coverage rate of the estimands (-@buur18 $\S$ 2.5.2). These measures are averaged across the simulation repetitions.
+As recommended by van Buuren (-@buur18 $\S$ 2.5.2), our performance measures are bias, confidence interval width, and coverage rate of the estimands. These measures are averaged across the simulation repetitions.
 <!-- [or just of the regression estimate?? otherwise add the ciw and cov of r2 too!!]. -->
 
 # Simulation Results
 
-The following figures display the simulation results for the eight diagnostic methods and four performance measures, contrasted to the number of iterations in the imputation algorithm. Within the figures, we split the results according to the missingness conditions [missingness mechanisms as line types, and proportion of incomplete cases as colors]. Note that these results are averages of the $n_{sim} = 1000$ simulation repetitions.
+The following figures display the simulation results for the sixteen diagnostic identifier-parameter-variable pairs, and sixteen performance measure-variable pairs, contrasted to the number of iterations in the imputation algorithm. Within the figures, we split the results according to the missingness conditions [TODO: missingness mechanisms as line types, and proportion of incomplete cases as colors?]. Note that these results are averages of the $n_{sim} = 2000$ simulation repetitions.
 
 ## Diagnostic Methods
 
-Figure \@ref(fig:ac) shows the autocorrelations in the chain means (panel A), chain variances (panel B), regression estimates (panel C), and eigenvalues (panel D).
+Figure \@ref(fig:ac) shows the autocorrelations in the chain means (panel A) and chain variances (panel B).
+
+```{r ac, fig.ncol=2}
+results |>
+  filter(method == "MICE") |> 
+  ggplot(aes(x = .it, y = ac_mean, color = mech, linetype = mech)) +
+  geom_hline(yintercept = 0, alpha = 0.1) + 
+  geom_line() +
+  facet_grid(term ~ prop) +
+  theme_classic()
+
+results |>
+  filter(method == "MICE") |> 
+  ggplot(aes(x = .it, y = ac_sd, color = mech, linetype = mech)) +
+  geom_hline(yintercept = 0, alpha = 0.1) + 
+  geom_line() +
+  facet_grid(term ~ prop) +
+  theme_classic()
+```
+
 
 Autocorrelation in the chain means decreases rapidly in the first few iterations (see \@ref(fig:ac)A). The decrease is substantive until $n_{it} \geq 6$. This means that there is some initial trending within chains, but the average imputed value quickly reaches stationarity. These results hold irrespective of the missingness condition.
-
-
 Autocorrelation in the chain variances show us something similar (see \@ref(fig:ac)B). The number of iterations that is required to reach non-improving autocorrelations is somewhat more ambiguous than for chain means, but generally around $n_{it} \geq 10$. We do not observe a systematic difference between missingness conditions here either. 
 
-There is more autocorrelation in the scientific estimates than in the chain means and chain variances (see \@ref(fig:ac)C). We observe the highest autocorrelations in conditions where 75% of cases are incomplete. Overall, the autocorrelations reach a plateau when $n_{it} \geq 20$ to $30$. There is no clear effect of the missingness mechanisms. 
+```{r psrf, fig.ncol=2}
+results |>
+  filter(method == "MICE") |> 
+  ggplot(aes(x = .it, y = psrf_mean, color = mech, linetype = mech)) +
+  geom_hline(yintercept = 1, alpha = 0.1) + 
+  geom_line() +
+  facet_grid(term ~ prop) +
+  theme_classic()
 
+results |>
+  filter(method == "MICE") |> 
+  ggplot(aes(x = .it, y = psrf_sd, color = mech, linetype = mech)) +
+  geom_hline(yintercept = 1, alpha = 0.1) + 
+  geom_line() +
+  facet_grid(term ~ prop) +
+  theme_classic()
+```
 
-The autocorrelation in the eigenvalues exhibits a similar trend to the autocorrelation in the scientific estimates (see \@ref(fig:ac)D). Trending in this parameter diminishes when $n_{it} \geq 20$.
+Figure \@ref(fig:rh) shows the potential scale reduction factor in the chain means (panel A) and chain variances (panel B).
 
-Figure \@ref(fig:rh) shows the potential scale reduction factor in the chain means (panel A), chain variances (panel B), regression estimates (panel C), and eigenvalues (panel D).
-
-We observe that $\widehat{R}$-values of the chain means generally decreases as a function of the number of iterations (see \@ref(fig:rh)A). An exception to this observation is the initial increase when $3 \leq n_{it} \leq 5$ [interpret?? due to initialization or is there really more mixing initially??]. After the first couple of iterations, the mixing between chain means generally improves until $n_{it} \geq 30$ to $40$. There is no apparent differentiation between the missingness conditions. 
-
-
+We observe that $\widehat{R}$-values of the chain means generally decrease as a function of the number of iterations (see \@ref(fig:rh)A). An exception to this observation is a steep increase in iterations $3 \leq n_{it} \leq 5$ [TODO: interpret?? due to initialization or is there really more mixing initially??]. After the first couple of iterations, the mixing between chain means generally improves until $n_{it} \geq 30$ to $40$. There is no apparent differentiation between the missingness conditions. 
 The mixing between chain variances mimics the mixing between chain means almost perfectly (see \@ref(fig:rh)B). Irrespective of the missingness condition, the $\widehat{R}$-values taper off around $n_{it} \geq 30$. 
+[The rhat plots all show some initialization before the fifth iteration: is rhat useful before that??]
 
-With the regression estimate as parameter we observe very similar $\widehat{R}$-values than with chain means and chain variances (see \@ref(fig:rh)C). We do, however, see some differences between missingness conditions. Conditions where 75% of the cases are incomplete show more extreme non-mixing. The overall trend remains the same: about 30 iterations are required before mixing stops improving substantially.
-
-
-$\widehat{R}$-values of the eigenvalues show a trend similar to the chain means and chain variances (see \@ref(fig:rh)D). [add something about conditions??]
-
-[These rhat plots all show some initialization before the fifth iteration: is rhat useful before that??]
 
 ## Performance Measures
 
-In Figure \@ref(fig:perf) we show the performance measures: bias in the regression estimate (panel A), bias in the coefficient of determination (panel B), the empirical coverage rate of the regression estimate (panel C) and the average confidence interval width of this estimate (panel D).
+```{r bias}
+results |>
+  filter(method == "MICE") |> 
+  ggplot(aes(x = .it, y = bias, color = mech, linetype = mech)) +
+  geom_hline(yintercept = 0, alpha = 0.1) + 
+  geom_line() +
+  facet_grid(term ~ prop) +
+  theme_classic()
+```
+
+- more missingness = more extreme bias, but also steeper decrease over iterations
+
+```{r cov}
+results |>
+  filter(method == "MICE") |> 
+  ggplot(aes(x = .it, y = cov, color = mech, linetype = mech)) +
+  geom_hline(yintercept = .95, alpha = 0.1) + 
+  geom_line() +
+  facet_grid(term ~ prop) +
+  theme_classic()
+```
+
+- no clear trend
+
+
+```{r ciw}
+results |>
+  filter(method == "MICE") |> 
+  ggplot(aes(x = .it, y = ciw, color = mech, linetype = mech)) +
+  geom_hline(yintercept = .95, alpha = 0.1) + 
+  geom_line() +
+  facet_grid(term ~ prop) +
+  theme_classic()
+```
+
+- more missingness = wider CIs, with steeper decrease in CIW, but not stababiling at same value between missingness conditions.
+
+In Figure \@ref(fig:perf) we show the performance measures: bias in the regression estimate (panel A), the empirical coverage rate of the regression estimate (panel C) and the average confidence interval width of this estimate (panel D).
 
 We see that within a few iterations the bias in the regression estimate approaches zero (see \@ref(fig:perf)A). When $n_{it} \geq 6$, even the worst-performing conditions (e.g., with a proportion of incomplete cases of 75%) produce stable, non-improving estimates [regression coefficient is underestimated because there is less info to estimate the relation??]. 
-
-Equivalent to the bias in the regression estimate, the bias in the coefficient of determination tapers off within a couple of iterations (see \@ref(fig:perf)B). We observe stable estimates in all conditions when $n_{it} \geq 6$ [interpret the over-estimation in MNAR+75% condition?].
 
 Nominal coverage is quickly reached (see \@ref(fig:perf)C). After just three iterations, the coverage rates are non-improving in every missingness condition [but MNAR with 5% incomplete cases does not reach nominal coverage --\> due to bias in the estimate in combination with very narrow CI (see CIW!)].
 
@@ -200,11 +315,6 @@ Our study found that---in the cases considered---inferential validity was achiev
 - Performance measures do not improve after n_it = 9
 
 - [methodological explanation is that rhat and ac have a lag (few it to inform your statistic) --\> will always indicate convergence slower than inferential validity is reached]
-
-- Univariate thetas may under-estimate non-convergence. 
-
-- Determining non-stationarity with lambda is more difficult than with qhat :(
-
 
 In short, the validity of iterative imputation stands or falls with algorithmic convergence---or so it's thought. We have shown that iterative imputation algorithms can yield correct outcomes even when a converged state has not yet formally been reached. Any further iterations just burn computational resources without improving the statistical inferences. 
 
@@ -308,25 +418,6 @@ plot_trace(nonconv, "hgt")
 - how many iterations are needed before convergence is reached?
 - how many iterations are needed before valid inferences are reached?
 
-
-```{r}
-results |>
-  filter(method == "MICE") |> #, prop == 0.75 mech == "MAR",
-  ggplot(aes(x = .it, y = bias, color = prop)) +
-  geom_hline(yintercept = 0, alpha = 0.1) + 
-  geom_line() +
-  facet_grid(term ~ mech) +
-  theme_classic()
-
-results |>
-  filter(method == "MICE") |> #, prop == 0.75 mech == "MAR",
-  ggplot(aes(x = .it, y = psrf_mean, color = prop)) +
-  geom_hline(yintercept = 1, alpha = 0.1) + 
-  geom_line() +
-  facet_grid(term ~ mech) +
-  theme_classic()
-
-```
 
   
 # Introduction (old)

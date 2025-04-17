@@ -12,7 +12,7 @@ apply_full <- function(amp) {
   # add method name and missingness
   est <- cbind(method = "full", mech = amp$mech, prop = amp$prop, .it = 0, est, ac_mean = NA, psrf_mean = NA, ac_sd = NA, psrf_sd = NA)
   # rename "(Intercept)" to "Y" for easier processing
-  est[est$term == "(Intercept)", "term"] <- "b0"
+  est[est$term == "(Intercept)", "term"] <- "Y"
   # output
   return(est)
 }
@@ -29,7 +29,7 @@ apply_CCA <- function(amp) {
   # add method name and missingness
   est <- cbind(method = "CCA", mech = amp$mech, prop = amp$prop, .it = 0, est, ac_mean = NA, psrf_mean = NA, ac_sd = NA, psrf_sd = NA)
   # rename "(Intercept)" to "Y" for easier processing
-  est[est$term == "(Intercept)", "term"] <- "b0"
+  est[est$term == "(Intercept)", "term"] <- "Y"
   # output
   return(est)
 }
@@ -75,7 +75,7 @@ estimate_param <- function(imp) {
     # select estimates
     dplyr::select(term, estimate, conf.low, conf.high)
   # rename "(Intercept)" to "Y" for easier processing
-  est[est$term == "(Intercept)", "term"] <- "b0"
+  est[est$term == "(Intercept)", "term"] <- "Y"
   # output
   return(est)
 }
