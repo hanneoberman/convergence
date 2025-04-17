@@ -8,6 +8,7 @@ execute:
   echo: false
   message: false
   warning: false
+  fig_width: 6
 format: pdf
 bibliography: references.bib
 ---
@@ -20,7 +21,7 @@ library(dplyr)
 load("../results/out.RData")
 source("../R/evaluate_estimates.R")
 performance <- evaluate_est(out)
-# performance[performance$term == "b0", "term"] <- "Y"
+performance[performance$term == "b0", "term"] <- "Y"
 results <- # simulation results split by condition and regression coefficient
 performance |> 
   group_by(method, mech, prop, .it, term) |> 
@@ -46,6 +47,15 @@ performance |>
 #   theme_classic()
 ```
 
+## Aims
+
+- can we diagnose non-convergence quantitatively?
+- ~~which parameter should we track?~~
+- how many iterations are needed before convergence is reached?
+- how many iterations are needed before valid inferences are reached?
+
+
+
 # Introduction (newest)
 
 Iterative imputation has become the de facto standard to accommodate missing data in social scientific research [ref: e.g., rubin after 18 years paper? murray 2018?]. The technique enables researchers to draw valid inferences when faced with incomplete observations, without resorting to ad hoc solutions such as list-wise deletion, which may bias results. With iterative imputation, every missing cell in an incomplete dataset is imputed (i.e., filled in) algorithmically. And once the dataset is completed, the analysis of scientific interest can be performed. This analysis will yield unbiased and confidence-valid estimates if--and only if--both the missing data problem and the scientific problem are appropriately considered. The validity of this whole process naturally depends on the convergence of the algorithm that was used to to generate the imputed values. Yet, there has not been a systematic study on how to evaluate the convergence of iterative imputation algorithms.
@@ -60,7 +70,7 @@ In this study, we explore different methods for identifying non-convergence in i
 
 # Simulation set-up
 
-We investigate non-convergence in iterative imputation through model-based simulation in R (version 4.4.2; R Core Team 2024). We provide a summary of the simulation set-up in Algorithm 1; the complete script and technical details are available from [github.com/hanneoberman/MissingThePoint](https://github.com/hanneoberman/MissingThePoint) [TODO: make this a Zenodo DOI].
+We investigate non-convergence in iterative imputation through model-based simulation in R (version 4.4.2; @R). We provide a summary of the simulation set-up in Algorithm 1; the complete script and technical details are available from [github.com/hanneoberman/MissingThePoint](https://github.com/hanneoberman/MissingThePoint) [TODO: make this a Zenodo DOI]. The number of simulation repetitions $n_{\mathrm{sim}} = 2000$.
 
 
 **Algorithm 1: simulation set-up (pseudo-code)**
@@ -79,13 +89,31 @@ We investigate non-convergence in iterative imputation through model-based simul
       9. combine outcomes from all missingness conditions
     10. aggregate outcomes from all simulation repetitions
 
+
+
+```
+# pseudo-code of simulation 
+for (number of simulation runs) {
+  1. simulate complete data 
+  for (missingness conditions) {
+    2. create missingness
+    for (number of iterations) {
+      3. impute missingness
+      4. estimate quantities of scientific interest
+      5. apply performance measures to the estimates
+      6. compute non-convergence diagnostics
+    }
+  }
+7. aggregate outcomes across simulation runs
+```
+
 ## Aims
 
-With this simulation, we assess the impact of non-convergence on the validity of scientific estimates obtained using the imputation package `{mice}` [@mice]. Inferential validity is reached when estimates are both unbiased and have nominal coverage across simulation repetitions ($n_{sim} = 2000$). To assess non-convergence, we terminate the imputation algorithm after a varying number of iterations ($n_{it} = 1, 2, ..., 100$). We differentiate between nine different missingness scenarios that are defined in the data generating mechanism. 
+With this simulation, we assess the impact of non-convergence on the validity of scientific estimates obtained using the imputation package `{mice}` [@mice]. Inferential validity is reached when estimates are both unbiased and have nominal coverage across simulation repetitions ($n_{\mathrm{sim}} = 2000$). To evaluate convergence, we terminate the imputation algorithm after a varying number of iterations ($n_{\mathrm{it}} = 1, 2, ..., 100$). We differentiate between six different missingness scenarios that are defined in the data generating mechanism. 
 
 ## Data generating mechanism
 
-We generate a complete set of $n_{\mathrm{obs}} = 200$ cases in each simulation repetition. This set consists of three multivariately normal random variables, such that
+In each simulation repetition, we first generate a complete set of $n_{\mathrm{obs}} = 200$ cases, representing person-data in a multiple linear regression problem. The predictor space consists of three multivariately normal random variables, 
 
 $$
 \begin{pmatrix}
@@ -105,16 +133,23 @@ X_3
 0.5   & 1     &  \\
 0.5  & 0.5   & 1
 \end{pmatrix}
-\end{bmatrix},
+\end{bmatrix}.
 $$ 
-and an outcome variable $Y$ as a linear combination of the three predictors. For each unit $i = 1, 2,..., n_\mathrm{obs}$,
+The outcome variable $Y$ is a linear combination of the three predictors, such that for each unit $i = 1, 2,..., n_\mathrm{obs}$,
 
 $$
 Y_i = X_{1i} + X_{2i} + X_{3i} + \epsilon_i ,
 $$
-where $\epsilon \sim \mathcal{N}(0, 1)$. This results in a complete dataset all units $i$ on all variables $j$ (where $j =  Y, X_1, X_2, X_3$) in each simulation repetition. Multivariate normal data are generated using the `mvtnorm` package [@mvtnorm]. 
+where $\epsilon \sim \mathcal{N}(0, 1)$. This results in a complete dataset of size $n_{\mathrm{obs}} \times p$, with units $i = 1, 2,..., n_\mathrm{obs}$ and variables $j =  Y, X_1, X_2, X_3$). Multivariate normal data are generated using the `mvtnorm` package [@mvtnorm].
 
-Subsequently, the complete set is 'amputed' (i.e., made incomplete) according to six missingness conditions. We use a $2 \times 3$ factorial design with three missingness mechanisms and three proportions of incomplete cases, see Table XYZ. Missingness mechanisms refer to the probability of being missing for any given entry in a dataset. There are three distinct types of mechanisms, as defined by Rubin (1976). Roughly translated, the probability of being missing may be equal for all entries (MCAR; Missing Completely At Random), may depend on observed information (MAR; Missing At Random), or may depend on *un*observed information, making the missingness non-ignorable (MNAR; Missing Not At Random). [TODO: add left-tailed M(N)AR mechanism, md pattern, and maybe refer to ampute paper or "Dance of..." by Schouten 2018; TODO: add `ampute()`].
+Subsequently, the complete are 'amputed' (i.e., made incomplete) according to six missingness conditions. We use a $2 \times 3$ factorial design with two missing data mechanisms and three proportions of incomplete cases, see Table XYZ.
+
+[TODO: make this a box] Missingness mechanisms refer to the probability of being missing for any given entry in a dataset. There are three distinct types of mechanisms, as defined by Rubin (1976). Roughly translated, the probability of being missing may be equal for all entries (MCAR; Missing Completely At Random), may depend on observed information (MAR; Missing At Random), or may depend on *un*observed information, making the missingness non-ignorable (MNAR; Missing Not At Random). 
+
+The missing data mechanisms under consideration are 'missing completely at random' [MCAR; @rubin87], where the probability to be missing is the same for all $n_\mathrm{obs} \times p$ cells in $y$, and a right-tailed 'missing at random' (MAR) mechanism, where the probability to be missing is a function of the observed data, and higher values are more likely to be missing. The proportion of incomplete cases $\pi_{\mathrm{inc}}$ is set to 25%, 50%, and 75%. 
+We use the 'mice' package [function `mice::ampute()`; @mice] to obtain an incomplete dataset {$y_{\mathrm{obs}}, y_{\mathrm{mis}}$} for every missingness condition. The missing data patterns are all possible combinations of multivariate missingness.
+
+[TODO: add left-tailed M(N)AR mechanism, md pattern, and maybe refer to ampute paper or "Dance of..." by Schouten 2018?].
 
 \begin{table}[]
 \begin{tabular}{lcr}
@@ -128,13 +163,24 @@ MCAR, MAR              &   & 25\%, 50\%, 75\%                \\ \hline
 
 ## Estimands
 
-We impute the missing data five times ($m = 5$) using Bayesian linear regression imputation with `mice` [@mice]. On each imputed dataset, we perform multiple linear regression as our analysis of scientific interest. We predict outcome variable $Y$ from the other variables,
+We impute the missing data five times ($m = 5$) using Bayesian linear regression imputation with `mice` [@mice]. On each imputed dataset, we perform multiple linear regression as our analysis of scientific interest. Our estimands are the regression coefficients $\boldsymbol{\beta}$, 
 
 $$
 \hat{Y} = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_3,
 $$
 
-where $\hat{Y}$ is the predicted value of the outcome. Our estimands are the regression coefficients $\boldsymbol{\beta}$, including the intercept $\beta_0$.
+where $\hat{Y}$ is the predicted value of the outcome. We estimate these coefficients using the `lm()` function [@R] in each imputed dataset, and subsequently pool the estimates across the five imputations using Rubin's rules [function `mice::pool()`; @mice]. 
+
+<!-- All imputation procedures are performed using `mice` [function `mice()`; @mice], with Bayesian linear regression imputation, and five imputation chains ($m=5$). This results in $m=5$ sets of imputations for each of the conditions, $\dot y_{\mathrm{imp}, \ell}$.  -->
+
+<!-- Subsequently, we obtain the completed data per imputation, {$y_{\mathrm{obs}}, \dot y_{\mathrm{imp}, \ell}$}, by combining the imputed data with the observed data [function `mice::complete()`; @mice]. Estimates of scientific quantities $Q$s are obtained after performing multiple linear regression [function `stats::lm()`, @R]. We pool the resulting $m$ estimates, $\hat{Q}_\ell$, into a single $\bar{Q}$ conform Rubin's rules [function `mice::pool()`; @mice]. -->
+
+
+## Performance measures
+
+We evaluate the pooled estimates against their true population values using the performance measures bias, confidence interval width, and coverage rate, as recommended by van Buuren (-@buur18 $\S$ 2.5.2). We calculate bias as $\bar{Q} - Q$. CR is defined as the percentage of simulation repetitions in which the 95\% confidence interval (CI) around $\bar{Q}$ covers the true estimand $Q$. Finally, we inspect CI width (CIW): the difference between the lower and upper bound of the 95\% confidence interval around $\bar{Q}$. CIW is of interest because it is a measure of efficiency. Under nominal coverage, short CIs are preferred, since wider CIs indicate lower statistical power.
+
+<!-- We evaluate the diagnostic methods to identify non-convergence against these performance measures. $\widehat{R}$ and $AC$ should identify non-convergence in simulation conditions, where $\bar{Q}$ is *not* an unbiased, confidence-valid estimate of $Q$. -->
 
 ## Diagnostic methods
 
@@ -165,41 +211,10 @@ AC, $\widehat{R}$           &          & chain means, chain variances &         
 
 We use two non-convergence identifiers---autocorrelation and $\widehat{R}$---to diagnose non-convergence in the imputation models of the four incomplete variables. For each variable we apply the two identifiers on two parameters---chain means and chain variances---and four variables, resulting in 16 sets of identifier-parameter-variable pairs.
 
-$$
-\begin{aligned}
-\hline
-&\mathrm{Non-convergence \ diagnostics} & & & & \\
-\hline
-&\begin{matrix}
-\widehat{R} \\
-\mathrm{AC } 
-\end{matrix}
-\quad
-&\times
-\quad
-&\begin{matrix}
-\mathrm{chain \ means} \\
-\mathrm{chain \ variances} 
-\end{matrix}
-\quad
-&\times
-\quad
-&\begin{matrix}
-Y\\
-X_1\\
-X_2\\
-X_3
-\end{matrix} \\
-&\mathrm{identifier} &&\mathrm{parameter} &&\mathrm{variable} \\
-\hline
-\end{aligned}
-$$
 
 
-## Performance measures
+<!-- We consider eight sets of diagnostic methods to identify non-convergence, by applying $\widehat{R}$ and $AC$ on four different $\theta$s. Univariate $\theta$s are obtained from $\dot y_{\mathrm{imp}, \ell}$. The model-independent multivariate $\theta$, $\lambda_{1}$, is obtained from {$y_{\mathrm{obs}}, \dot y_{\mathrm{imp}, \ell}$} as the variance in the first PCA component [function `stats::princomp`; R]. The model-dependent multivariate $\theta$ is one of the quantities of scientific interest: the estimated regression coefficients in {$y_{\mathrm{obs}}, \dot y_{\mathrm{imp}, \ell}$}. We apply the two non-convergence diagnostics on the $\theta$s by implementing the adapted version of $\widehat{R}$ and by manually programming the $AC$ function.  -->
 
-As recommended by van Buuren (-@buur18 $\S$ 2.5.2), our performance measures are bias, confidence interval width, and coverage rate of the estimands. These measures are averaged across the simulation repetitions.
-<!-- [or just of the regression estimate?? otherwise add the ciw and cov of r2 too!!]. -->
 
 # Simulation Results
 
@@ -209,7 +224,7 @@ The following figures display the simulation results for the sixteen diagnostic 
 
 Figure \@ref(fig:ac) shows the autocorrelations in the chain means (panel A) and chain variances (panel B).
 
-```{r ac, fig.ncol=2}
+```{r ac_mean}
 results |>
   filter(method == "MICE") |> 
   ggplot(aes(x = .it, y = ac_mean, color = mech, linetype = mech)) +
@@ -217,7 +232,10 @@ results |>
   geom_line() +
   facet_grid(term ~ prop) +
   theme_classic()
+```
 
+
+```{r ac_sd}
 results |>
   filter(method == "MICE") |> 
   ggplot(aes(x = .it, y = ac_sd, color = mech, linetype = mech)) +
@@ -231,7 +249,7 @@ results |>
 Autocorrelation in the chain means decreases rapidly in the first few iterations (see \@ref(fig:ac)A). The decrease is substantive until $n_{it} \geq 6$. This means that there is some initial trending within chains, but the average imputed value quickly reaches stationarity. These results hold irrespective of the missingness condition.
 Autocorrelation in the chain variances show us something similar (see \@ref(fig:ac)B). The number of iterations that is required to reach non-improving autocorrelations is somewhat more ambiguous than for chain means, but generally around $n_{it} \geq 10$. We do not observe a systematic difference between missingness conditions here either. 
 
-```{r psrf, fig.ncol=2}
+```{r psrf_mean}
 results |>
   filter(method == "MICE") |> 
   ggplot(aes(x = .it, y = psrf_mean, color = mech, linetype = mech)) +
@@ -239,7 +257,10 @@ results |>
   geom_line() +
   facet_grid(term ~ prop) +
   theme_classic()
+```
 
+
+```{r psrf_sd}
 results |>
   filter(method == "MICE") |> 
   ggplot(aes(x = .it, y = psrf_sd, color = mech, linetype = mech)) +
@@ -411,20 +432,13 @@ plot_trace(nonconv, "hgt")
 
 
 
-## Aims
-
-- can we diagnose non-convergence quantitatively?
-- ~~which parameter should we track?~~
-- how many iterations are needed before convergence is reached?
-- how many iterations are needed before valid inferences are reached?
-
 
   
 # Introduction (old)
 
 Anyone who analyzes person-data may run into a missing data problem. Missing data is not only ubiquitous across science, but treating it can also be a tedious task. If a dataset contains just one incomplete observation, calculations are not defined, and statistical models cannot be fitted to the data. To circumvent this, many statistical packages employ list-wise deletion by default (i.e., ignoring incomplete observations). Unfortunately, this *ad hoc* solution may yield invalid results [@buur18]. An alternative is to apply imputation. With imputation, we 'fill in' the missing values in an incomplete dataset. Subsequently, the model of scientific interest can be fitted to the completed dataset. By repeating this process several times, a distribution of plausible results may be obtained, which reflects the uncertainty in the data due to missingness. This technique is known as 'multiple imputation' [MI; @rubin76]. MI has proven to be a powerful tool to draw valid inferences from incomplete data under many circumstances [@buur18]. 
 
-Figure \ref{fig:diagram} provides an overview of the steps involved with MI. The missing part $y_{\mathrm mis}$ of an incomplete dataset is imputed $m$ times. This creates $m$ sets of imputed data $\dot y_{\mathrm imp, \ell}$, where $\ell = 1, 2, ..., m$. The imputed data is then combined with the observed data $y_{\mathrm obs}$ to create $m$ completed datasets. On each of these datasets the analysis of scientific interest is performed to estimate $Q$: the quantity of scientific interest (e.g., a regression coefficient). Since $Q$ is estimated on each completed dataset, $m$ separate $\hat{Q}_\ell$-values are obtained. Finally, the $\hat{Q}_\ell$-values are combined into a single pooled estimate $\bar{Q}$. The premise of multiple imputation is that $\bar{Q}$ is an unbiased and confidence-valid estimate of the true---but unobserved---scientific estimand $Q$ [@rubin96].
+Figure \ref{fig:diagram} provides an overview of the steps involved with MI. The missing part $y_{\mathrm{mis}}$ of an incomplete dataset is imputed $m$ times. This creates $m$ sets of imputed data $\dot y_{\mathrm{imp}, \ell}$, where $\ell = 1, 2, ..., m$. The imputed data is then combined with the observed data $y_{\mathrm{obs}}$ to create $m$ completed datasets. On each of these datasets the analysis of scientific interest is performed to estimate $Q$: the quantity of scientific interest (e.g., a regression coefficient). Since $Q$ is estimated on each completed dataset, $m$ separate $\hat{Q}_\ell$-values are obtained. Finally, the $\hat{Q}_\ell$-values are combined into a single pooled estimate $\bar{Q}$. The premise of multiple imputation is that $\bar{Q}$ is an unbiased and confidence-valid estimate of the true---but unobserved---scientific estimand $Q$ [@rubin96].
 <!-- "A scientific estimand $Q$ is a quantity of scientific interest that we can calculate if we would observe the entire population" [@buur18, par 2.3.1] -->
 
 ```{r diagram, echo=FALSE, out.width="\\linewidth", include=TRUE, fig.cap="Scheme of the main steps in multiple imputation---from an incomplete dataset, to $m=3$ multiply imputed datasets, to $m=3$ estimated quantities of scientific interest $\\hat{Q}$, to a single pooled estimate $\\bar{Q}$."}
@@ -447,7 +461,7 @@ In this paper we study different methods for assessing non-convergence in iterat
 
 ## Some notation
 
-Let $y$ denote an $n \times k$ matrix containing the data values on $k$ variables for all $n$ units in a sample. The data value of unit $i$ ($i = 1, 2, \dots, n$) on variable $j$ ($j = 1, 2, \dots, k$) may be either observed or missing. The number of units $i$ with at least one missing value, divided by the total number of units $n$, is called the proportion of incomplete cases $p_{\mathrm inc}$ in dataset $y$. The collection of observed data values in $y$ is denoted by $y_{\mathrm obs}$; the missing part of $y$ is referred to as $y_{\mathrm mis}$. For each datapoint in $y_{\mathrm mis}$, we sample $m \times T$ plausible values, where $m$ is the number of imputations ($\ell = 1, 2, \dots, m$) and $T$ is the number of iterations in the imputation algorithm ($t = 1, 2, \dots, T$). The state-space of the algorithm at a certain iteration $t$ may be summarized by a scalar summary $\theta$ (e.g., the average of the imputed values). The collection of $\theta$-values between $t=1$ (summarizing the state-space of the algorithm at initialization) and $t=T$ (summarizing the state-space for the imputed values) will be referred to as an 'imputation chain'. 
+Let $y$ denote an $n \times k$ matrix containing the data values on $k$ variables for all $n$ units in a sample. The data value of unit $i$ ($i = 1, 2, \dots, n$) on variable $j$ ($j = 1, 2, \dots, k$) may be either observed or missing. The number of units $i$ with at least one missing value, divided by the total number of units $n$, is called the proportion of incomplete cases $p_{\mathrm{inc}}$ in dataset $y$. The collection of observed data values in $y$ is denoted by $y_{\mathrm{obs}}$; the missing part of $y$ is referred to as $y_{\mathrm{mis}}$. For each datapoint in $y_{\mathrm{mis}}$, we sample $m \times T$ plausible values, where $m$ is the number of imputations ($\ell = 1, 2, \dots, m$) and $T$ is the number of iterations in the imputation algorithm ($t = 1, 2, \dots, T$). The state-space of the algorithm at a certain iteration $t$ may be summarized by a scalar summary $\theta$ (e.g., the average of the imputed values). The collection of $\theta$-values between $t=1$ (summarizing the state-space of the algorithm at initialization) and $t=T$ (summarizing the state-space for the imputed values) will be referred to as an 'imputation chain'. 
 
 
 
@@ -455,9 +469,9 @@ Let $y$ denote an $n \times k$ matrix containing the data values on $k$ variable
 
 There are two requirements for convergence of iterative algorithms: mixing and stationarity [@gelm13]. In iterative imputation algorithms, mixing implies that imputation chains intermingle nicely, and stationarity is characterized by the absence of trending across iterations. If one of the two requirements is not met, we speak of non-convergence. Without mixing, chains may be 'stuck' at a local optimum, instead of sampling imputed values from the entire predictive posterior distribution of the missing values. The distribution of imputed values then differs across imputations. This may cause under-estimation of the variance between chains, which results in spurious, invalid inferences. Without stationarity, there is trending within imputation chains. Trending implies that further iterations would yield a systematically lower or higher set of imputations. Iterative imputation algorithms that have not (yet) reached stationarity, may thus yield biased estimates.
 
-To illustrate what non-mixing and non-stationarity look like in iterative imputation algorithms, we reproduce an example from van Buuren [-@buur18, $\S$ 6.5.2]. Figure \ref{fig:non-conv} displays two scenarios from the example. The panel on the left-hand side of the figure shows typical convergence of an iterative imputation algorithm. The right-hand side displays pathological non-convergence, induced by purposefully mis-specifying the imputation model. Each line portrays one imputation chain (i.e., the values of a scalar summary $\theta$ across iterations). The $\theta$ depicted here is the 'chain mean' of variable $j$, which is defined as the average of variable $j$ in the $m$ sets of imputations $\dot y_{\mathrm imp, \ell}$. 
+To illustrate what non-mixing and non-stationarity look like in iterative imputation algorithms, we reproduce an example from van Buuren [-@buur18, $\S$ 6.5.2]. Figure \ref{fig:non-conv} displays two scenarios from the example. The panel on the left-hand side of the figure shows typical convergence of an iterative imputation algorithm. The right-hand side displays pathological non-convergence, induced by purposefully mis-specifying the imputation model. Each line portrays one imputation chain (i.e., the values of a scalar summary $\theta$ across iterations). The $\theta$ depicted here is the 'chain mean' of variable $j$, which is defined as the average of variable $j$ in the $m$ sets of imputations $\dot y_{\mathrm{imp}, \ell}$. 
 
-In the typical convergence scenario, the imputation chains intermingle nicely and there is little to no trending. In the non-convergence scenario, there is a lot of trending and some chains do not intermingle. Importantly, the chain means at the last iteration (the imputed values per imputation $\ell$) are very different between the two scenarios. The algorithm with the mis-specified model yields imputed values that are on average a factor two larger than those of the typically converged algorithm. It is obvious that non-convergence in this example impacts the distribution of the imputed values per imputation $\dot y_{\mathrm imp, \ell}$. This effect may translate into the distribution of the $m$ sets of completed data {$y_{\mathrm obs}, \dot y_{\mathrm imp, \ell}$}, which consequently affects the estimated quantities of scientific interest $\hat{Q}_{\ell}$, and finally the pooled estimate $\bar{Q}$. $\bar{Q}$ is then a  biased, invalid estimate of $Q$. Therefore, it is important to reach algorithmic convergence in iterative imputation algorithms.
+In the typical convergence scenario, the imputation chains intermingle nicely and there is little to no trending. In the non-convergence scenario, there is a lot of trending and some chains do not intermingle. Importantly, the chain means at the last iteration (the imputed values per imputation $\ell$) are very different between the two scenarios. The algorithm with the mis-specified model yields imputed values that are on average a factor two larger than those of the typically converged algorithm. It is obvious that non-convergence in this example impacts the distribution of the imputed values per imputation $\dot y_{\mathrm{imp}, \ell}$. This effect may translate into the distribution of the $m$ sets of completed data {$y_{\mathrm{obs}}, \dot y_{\mathrm{imp}, \ell}$}, which consequently affects the estimated quantities of scientific interest $\hat{Q}_{\ell}$, and finally the pooled estimate $\bar{Q}$. $\bar{Q}$ is then a  biased, invalid estimate of $Q$. Therefore, it is important to reach algorithmic convergence in iterative imputation algorithms.
 
 
 ```{r non-conv, out.width='.49\\linewidth', fig.width=3.5, fig.height=3,fig.show='hold',fig.cap="Typical convergence versus pathological non-convergence (reproduced from van Buuren; 2018). Depicted are chain means of variable $j$ in each imputation ($m=5$; $T=10$). Note that any difference between the two scenarios (see e.g., the magnitude of the chain means on the y-axes) stems from the imputation algorithms---the two scenarios have equal incomplete data $y$."}
@@ -485,7 +499,7 @@ As alternative, van Buuren [-@buur18, $\S$ 4.5.2] proposed multivariate evaluati
 
 To monitor non-convergence in iterative imputation algorithms, we may  summarize the state-space of the algorithm with several $\theta$s. The downside to the current $\theta$s is that they either focus on the univariate state-space, or primarily track the change over the iterations of a multivariate outcome conform the scientific model of interest. Ideally, one would like to evaluate a model-independent $\theta$ that summarizes the multivariate nature of the data. 
 
-We propose $\lambda_{1}$ as such a scalar summary. We define $\lambda_{1}$ as the first eigenvalue of the variance-covariance matrix in the $m$ completed datasets. The eigenvalues of a variance-covariance matrix $S$ summarize the total set of covariances in the data. Let $\lambda_{1, \ell} \geq \lambda_{2, \ell} \geq ... \geq \lambda_{j, \ell}$ be the eigenvalues of $S_\ell$ in each imputation. The first eigenvalue, $\lambda_{1,\ell}$, then summarizes the largest possible amount of covariance in each completed dataset {$y_{\mathrm obs}, \dot y_{\mathrm imp, \ell}$}. By definition, $\lambda_{1}$-values are equal to the variance of the first component that would be obtained by performing principal component analysis (PCA) on the completed data. As scalar summary, $\lambda_{1}$ has the appealing property that it is not dependent on the model of scientific interest, yet still summarizes the multivariate state-space of the algorithm.
+We propose $\lambda_{1}$ as such a scalar summary. We define $\lambda_{1}$ as the first eigenvalue of the variance-covariance matrix in the $m$ completed datasets. The eigenvalues of a variance-covariance matrix $S$ summarize the total set of covariances in the data. Let $\lambda_{1, \ell} \geq \lambda_{2, \ell} \geq ... \geq \lambda_{j, \ell}$ be the eigenvalues of $S_\ell$ in each imputation. The first eigenvalue, $\lambda_{1,\ell}$, then summarizes the largest possible amount of covariance in each completed dataset {$y_{\mathrm{obs}}, \dot y_{\mathrm{imp}, \ell}$}. By definition, $\lambda_{1}$-values are equal to the variance of the first component that would be obtained by performing principal component analysis (PCA) on the completed data. As scalar summary, $\lambda_{1}$ has the appealing property that it is not dependent on the model of scientific interest, yet still summarizes the multivariate state-space of the algorithm.
 
 In this study, we consider each of the four $\theta$s that we discussed. Namely, two univariate scalar summaries (chain mean and chain variance), a model-dependent multivariate summary $\hat{Q}$, and the novel model-independent multivariate summary $\lambda_1$.
 
@@ -570,16 +584,16 @@ In short, both non-convergence diagnostics have a version that may be appropriat
 
 The simulation study aims to determine to what extend non-convergence affects iterative imputation algorithms. Specifically, we are interested in the validity of inferences drawn from incomplete data using the MICE algorithm. And, whether invalid inferences due to non-convergence may be detected using eight sets of diagnostic methods. If the estimated quantities of scientific interest $\bar{Q}$ are unbiased and confidence-valid estimates of ${Q}$, we will conclude that the algorithm is sufficiently converged for practical purposes. In contrast to this, we defined *approximate* convergence as the most converged state that the algorithm can obtain. Continued iteration after reaching approximate convergence does not yield better mixing or stationarity (indicated by non-improving $\widehat{R}$- and $AC$-values). Continued iteration after obtaining valid inferences may lead to a more converged state of the algorithm, but not better estimates.
 
-To induce non-convergence, we consider two sets of simulation conditions: 'missingness' and 'early stopping'. Missingness refers to the severity of the missing data problem, which we determine by the proportion of incomplete cases in dataset $y$, $p_{\mathrm inc}$. Early stopping is defined by the number of iterations in the imputation algorithm, $T$.   
+To induce non-convergence, we consider two sets of simulation conditions: 'missingness' and 'early stopping'. Missingness refers to the severity of the missing data problem, which we determine by the proportion of incomplete cases in dataset $y$, $p_{\mathrm{inc}}$. Early stopping is defined by the number of iterations in the imputation algorithm, $T$.   
 
-The missingness conditions are chosen to reflect the difficulty of the missingness problem. The underlying assumption is that a low proportion of incomplete cases $p_{\mathrm inc}$ leads to quick algorithmic convergence, since there is a lot of information in the observed data. A higher $p_{\mathrm inc}$ yields slower convergence---unless there is so little information in $y_{\mathrm obs}$ that this is outweighed by the random component in the imputation algorithm. Then, convergence to a stable but highly variable state may be reached instantly. Still, we expect that missingness conditions with higher $p_{\mathrm inc}$ will result in more signs of non-convergence.
+The missingness conditions are chosen to reflect the difficulty of the missingness problem. The underlying assumption is that a low proportion of incomplete cases $p_{\mathrm{inc}}$ leads to quick algorithmic convergence, since there is a lot of information in the observed data. A higher $p_{\mathrm{inc}}$ yields slower convergence---unless there is so little information in $y_{\mathrm{obs}}$ that this is outweighed by the random component in the imputation algorithm. Then, convergence to a stable but highly variable state may be reached instantly. Still, we expect that missingness conditions with higher $p_{\mathrm{inc}}$ will result in more signs of non-convergence.
 
 The assumption inherent to the early stopping conditions is that terminating the imputation algorithm too early causes non-convergence. Generally, the algorithm will not reach convergence if $T=1$, because the imputed values in the first iteration (at $t=1$) depend on the starting values [which are sampled randomly from the set of observed datapoints; @buur18]. As the number of iterations increases, the imputation chains should become independent of the initial values, until approximate convergence is reached (i.e., when an additional iteration does not lead to a more converged state). We expect that we can induce non-convergence by early stopping in at least those conditions where $T$ is smaller than the default number of iterations in `mice`, $T=5$ [@mice]. 
 
 
 ## Hypotheses 
 
-1. We expect that simulation conditions with a high proportion of incomplete cases $p_{\mathrm inc}$ and a low number of iterations $T$ will more often result in biased, invalid estimates of the quantities of scientific interest $Q$. 
+1. We expect that simulation conditions with a high proportion of incomplete cases $p_{\mathrm{inc}}$ and a low number of iterations $T$ will more often result in biased, invalid estimates of the quantities of scientific interest $Q$. 
 
 2. We hypothesize that $\widehat{R}$ and $AC$ will correctly identify signs of non-convergence in those simulation conditions where any $\bar{Q}$ is *not* an unbiased and confidence-valid estimate of $Q$.
 
@@ -639,7 +653,7 @@ In each simulation repetition, a finite population of $N=1000$ is simulated usin
 $$
 Y_i = X_{1i} + X_{2i} + X_{3i} + \epsilon_i ,
 $$
-where $\epsilon \sim \mathcal{N}(0, 1)$. This results in a dataset $y$, where $y_{\mathrm mis} = \emptyset$. In other words, $y$ contains the complete set of observations for all units $i$ on all variables $j$ (where $j =  Y, X_1, X_2, X_3$).  
+where $\epsilon \sim \mathcal{N}(0, 1)$. This results in a dataset $y$, where $y_{\mathrm{mis}} = \emptyset$. In other words, $y$ contains the complete set of observations for all units $i$ on all variables $j$ (where $j =  Y, X_1, X_2, X_3$).  
 
 ### Scientific estimands.
 
@@ -654,53 +668,12 @@ where $Y'$ is the expected value of the outcome. From the data-generating mechan
 
 We consider two sets of simulation conditions, 'missingness conditions' and 'early stopping' conditions. The simulation study is a fully factorial design, as visualized in Table XYZ.
 
-In each simulation repetition, we *ampute* the complete dataset conform six missingness conditions: two missing data mechanisms and three proportions of incomplete cases. The missing data mechanisms are 'missing completely at random' [MCAR; @rubin87], where the probability to be missing is the same for all $N \times k$ cells in $y$, and a right-tailed 'missing at random' (MAR) mechanism, where the probability to be missing is a function of the observed data and higher values are more likely to be missing. The proportion of incomplete cases $p_{\mathrm inc}$ is set to 25%, 50%, and 75%. 
+In each simulation repetition, we *ampute* the complete dataset conform six missingness conditions: two missing data mechanisms and three proportions of incomplete cases. The missing data mechanisms are 'missing completely at random' [MCAR; @rubin87], where the probability to be missing is the same for all $N \times k$ cells in $y$, and a right-tailed 'missing at random' (MAR) mechanism, where the probability to be missing is a function of the observed data and higher values are more likely to be missing. The proportion of incomplete cases $p_{\mathrm{inc}}$ is set to 25%, 50%, and 75%. 
 
 <!-- Table -->
 <!-- mechanisms: MCAR, MAR -->
 <!-- proportion of incomplete cases: 25%, 50%, 75% -->
 
-
-<!-- \begin{table}[] -->
-<!-- \begin{tabular}{lllll} -->
-<!-- \hline -->
-<!-- Missingness &  &                 &  & Early stopping            \\ \cline{1-3} \cline{5-5}  -->
-<!-- Mechanism   &  & Proportion      &  & Iteration number          \\ \cline{1-1} \cline{3-3} \cline{5-5}  -->
-<!-- MCAR, MAR   &  & 0.25, 0.5, 0.75 &  & 1, 2, 3, ..., 98, 99, 100 \\ \hline -->
-<!-- \end{tabular} -->
-<!-- \end{table} -->
-
-$$
-\begin{aligned}
-\hline
-&\mathrm{Missingness \ conditions} & & & &\mathrm{Early \ stopping \ conditions} \\
-\hline
-&\begin{matrix}
-\mathrm{MCAR} \\
-\mathrm{MAR \ } 
-\end{matrix}
-\quad
-&\times
-\quad
-&\begin{matrix}
-25\% \\
-50\% \\
-75\%
-\end{matrix}
-\quad
-&\times
-\quad
-&\begin{matrix}
-1 \\
-2 \\
-... \\
-99 \\
-100 \\
-\end{matrix} \\
-&\mathrm{mechansim} &&\mathrm{incomplete \ cases} &&\mathrm{iteration(s)} \\
-\hline
-\end{aligned}
-$$
 
 We consider all possible multivariate patterns of missingness, as visualized in Figure \ref{fig:patterns}. 
 
@@ -714,23 +687,23 @@ d
 ggmice::plot_pattern(d)
 ```
 
-We use the 'mice' package [function `mice::ampute()`; @mice] to obtain an incomplete dataset {$y_{\mathrm obs}, y_{\mathrm mis}$} for each of the six missingness conditions. 
+We use the 'mice' package [function `mice::ampute()`; @mice] to obtain an incomplete dataset {$y_{\mathrm{obs}}, y_{\mathrm{mis}}$} for each of the six missingness conditions. 
 
-We impute the missing values in {$y_{\mathrm obs}, \dot y_{\mathrm mis}$} according to the early stopping conditions. That is, we vary the number of iterations in the imputation algorithm between one and one hundred ($T = 1,2,.,100$). All imputation procedures are performed using `mice` [function `mice()`; @mice], with Bayesian linear regression imputation, and five imputation chains ($m=5$). This results in $m=5$ sets of imputations for each of the one hundred early stopping conditions, $\dot y_{\mathrm imp, \ell}$. 
+We impute the missing values in {$y_{\mathrm{obs}}, \dot y_{\mathrm{mis}}$} according to the early stopping conditions. That is, we vary the number of iterations in the imputation algorithm between one and one hundred ($T = 1,2,.,100$). All imputation procedures are performed using `mice` [function `mice()`; @mice], with Bayesian linear regression imputation, and five imputation chains ($m=5$). This results in $m=5$ sets of imputations for each of the one hundred early stopping conditions, $\dot y_{\mathrm{imp}, \ell}$. 
 
-Subsequently, we obtain the completed data per imputation, {$y_{\mathrm obs}, \dot y_{\mathrm imp, \ell}$}, by combining the imputed data with the observed data [function `mice::complete()`; @mice]. Estimates of scientific quantities $Q$s are obtained after performing multiple linear regression [function `stats::lm()`, @R]. We pool the resulting $m$ estimates, $\hat{Q}_\ell$, into a single $\bar{Q}$ conform Rubin's rules [function `mice::pool()`; @mice].
+Subsequently, we obtain the completed data per imputation, {$y_{\mathrm{obs}}, \dot y_{\mathrm{imp}, \ell}$}, by combining the imputed data with the observed data [function `mice::complete()`; @mice]. Estimates of scientific quantities $Q$s are obtained after performing multiple linear regression [function `stats::lm()`, @R]. We pool the resulting $m$ estimates, $\hat{Q}_\ell$, into a single $\bar{Q}$ conform Rubin's rules [function `mice::pool()`; @mice].
 
 
 ### Methods.
 
-We consider eight sets of diagnostic methods to identify non-convergence, by applying $\widehat{R}$ and $AC$ on four different $\theta$s. Univariate $\theta$s are obtained from $\dot y_{\mathrm imp, \ell}$. The model-independent multivariate $\theta$, $\lambda_{1}$, is obtained from {$y_{\mathrm obs}, \dot y_{\mathrm imp, \ell}$} as the variance in the first PCA component [function `stats::princomp`; R]. The model-dependent multivariate $\theta$ is one of the quantities of scientific interest: the estimated regression coefficients in {$y_{\mathrm obs}, \dot y_{\mathrm imp, \ell}$}. We apply the two non-convergence diagnostics on the $\theta$s by implementing the adapted version of $\widehat{R}$ and by manually programming the $AC$ function. 
+We consider eight sets of diagnostic methods to identify non-convergence, by applying $\widehat{R}$ and $AC$ on four different $\theta$s. Univariate $\theta$s are obtained from $\dot y_{\mathrm{imp}, \ell}$. The model-independent multivariate $\theta$, $\lambda_{1}$, is obtained from {$y_{\mathrm{obs}}, \dot y_{\mathrm{imp}, \ell}$} as the variance in the first PCA component [function `stats::princomp`; R]. The model-dependent multivariate $\theta$ is one of the quantities of scientific interest: the estimated regression coefficients in {$y_{\mathrm{obs}}, \dot y_{\mathrm{imp}, \ell}$}. We apply the two non-convergence diagnostics on the $\theta$s by implementing the adapted version of $\widehat{R}$ and by manually programming the $AC$ function. 
 
 
 ### Performance measures. 
 
 As recommended by @buur18, we evaluate the performance of the imputation algorithm with bias, coverage rate (CR), and confidence interval width (CIW). Bias is calculated for each $Q$, whereas CR and CIW are only obtained for $Q = \beta$. We calculate bias as $\bar{Q} - Q$. CR is defined as the percentage of simulation repetitions in which the 95\% confidence interval (CI) around $\bar{Q}$ covers the true estimand $Q$. Let
-$$\text{CI} = \bar{Q} \pm t_{(m-1)} \times \mathrm SE_{\bar{Q}},$$
-where $t_{(M-1)}$ is the quantile of a $t$-distribution with $m-1$ degrees of freedom, and $\mathrm SE_{\bar{Q}}$ is the square root of the pooled variance estimate. If we obtain nominal coverage (CR = 95%), we can conclude that $\bar{Q}$ is a confidence-valid estimate of $Q$. Finally, we inspect CI width (CIW): the difference between the lower and upper bound of the 95\% confidence interval around $\bar{Q}$. CIW is of interest because it is a measure of efficiency. Under nominal coverage, short CIs are preferred, since wider CIs indicate lower statistical power.
+$$\text{CI} = \bar{Q} \pm t_{(m-1)} \times \mathrm{SE}_{\bar{Q}},$$
+where $t_{(M-1)}$ is the quantile of a $t$-distribution with $m-1$ degrees of freedom, and $\mathrm{SE}_{\bar{Q}}$ is the square root of the pooled variance estimate. If we obtain nominal coverage (CR = 95%), we can conclude that $\bar{Q}$ is a confidence-valid estimate of $Q$. Finally, we inspect CI width (CIW): the difference between the lower and upper bound of the 95\% confidence interval around $\bar{Q}$. CIW is of interest because it is a measure of efficiency. Under nominal coverage, short CIs are preferred, since wider CIs indicate lower statistical power.
 
 We evaluate the diagnostic methods to identify non-convergence against these performance measures. $\widehat{R}$ and $AC$ should identify non-convergence in simulation conditions, where $\bar{Q}$ is *not* an unbiased, confidence-valid estimate of $Q$. 
 <!-- Performance measures @buur18, $\S$ 2.5.2 -->
@@ -754,28 +727,28 @@ Figure \ref{fig:Qs} displays the influence of missingness and early stopping on 
 
 
 ### $Q=\mu$.
-The estimated univariate means seem unaffected by early stopping. This implies that approximately unbiased estimates may be obtained with as little as one iteration ($T \geq 1$). The bias in $\bar{Q}$ depends solely on the proportion of incomplete cases, with $p_{\mathrm inc}\geq.75$ leading to more extreme biases than other conditions. Completely unbiased estimates are only obtained in conditions where $p_{\mathrm inc}\leq.50$. This is curious since the MCAR missingness mechanism should yield unbiased univariate estimates without employing multiple imputation. Note however, that the magnitude of the bias in these conditions is small: $\mu_Y$ is maximally under-estimated by 0.02 units, while the true value of $\mu_Y$ is 25.81 ($\sigma_Y = 11.32$). We, therefore, conclude that non-convergence does not substantially impact the validity of the inferences for $Q=\mu$. 
+The estimated univariate means seem unaffected by early stopping. This implies that approximately unbiased estimates may be obtained with as little as one iteration ($T \geq 1$). The bias in $\bar{Q}$ depends solely on the proportion of incomplete cases, with $p_{\mathrm{inc}}\geq.75$ leading to more extreme biases than other conditions. Completely unbiased estimates are only obtained in conditions where $p_{\mathrm{inc}}\leq.50$. This is curious since the MCAR missingness mechanism should yield unbiased univariate estimates without employing multiple imputation. Note however, that the magnitude of the bias in these conditions is small: $\mu_Y$ is maximally under-estimated by 0.02 units, while the true value of $\mu_Y$ is 25.81 ($\sigma_Y = 11.32$). We, therefore, conclude that non-convergence does not substantially impact the validity of the inferences for $Q=\mu$. 
 
 ### $Q=\sigma$.
-The estimated standard deviations are not substantially impacted by early stopping either. While the estimates for $T=1$ are not equal to other conditions, the bias is actually *less* severe than for $T\geq2$. Therefore, no iteration at all is needed to obtain approximately unbiased estimates for $Q=\sigma$. Completely unbiased estimates are only obtained in conditions where $p_{\mathrm inc}=.05$. The other missingness conditions are impacted by non-convergence in the order of increasing $p_{\mathrm inc}$. Similar to $Q=\mu$, the magnitude of the bias in $Q=\sigma$ is negligible. We, therefore, conclude that neither one of the univariate $Q$s is affected substantially by non-convergence.
+The estimated standard deviations are not substantially impacted by early stopping either. While the estimates for $T=1$ are not equal to other conditions, the bias is actually *less* severe than for $T\geq2$. Therefore, no iteration at all is needed to obtain approximately unbiased estimates for $Q=\sigma$. Completely unbiased estimates are only obtained in conditions where $p_{\mathrm{inc}}=.05$. The other missingness conditions are impacted by non-convergence in the order of increasing $p_{\mathrm{inc}}$. Similar to $Q=\mu$, the magnitude of the bias in $Q=\sigma$ is negligible. We, therefore, conclude that neither one of the univariate $Q$s is affected substantially by non-convergence.
 
 ### $Q=r^2$.
-In contrast to the univariate estimates, the estimated coefficient of determination is clearly affected by early stopping, see Figure \ref{fig:Qs}C. The bias in $Q$ appears to decrease with each additional iteration, while the magnitude of the bias still depends on the proportion of incomplete cases. Therefore, we see that the number of iterations that is necessary to reach stable, non-improving estimates also differs across missingness conditions. In conditions where $p_{\mathrm inc}=.05$, estimates are unbiased after one iteration. The highest number of iterations necessary to reach approximate unbiasedness is seven ($p_{\mathrm inc}=.95$; $T\geq7$). Completely unbiased estimates are only obtained in conditions where $p_{\mathrm inc}\leq.25$. This implies that even for biased estimates, $T\geq7$ would suffice to reach a stable solution.
+In contrast to the univariate estimates, the estimated coefficient of determination is clearly affected by early stopping, see Figure \ref{fig:Qs}C. The bias in $Q$ appears to decrease with each additional iteration, while the magnitude of the bias still depends on the proportion of incomplete cases. Therefore, we see that the number of iterations that is necessary to reach stable, non-improving estimates also differs across missingness conditions. In conditions where $p_{\mathrm{inc}}=.05$, estimates are unbiased after one iteration. The highest number of iterations necessary to reach approximate unbiasedness is seven ($p_{\mathrm{inc}}=.95$; $T\geq7$). Completely unbiased estimates are only obtained in conditions where $p_{\mathrm{inc}}\leq.25$. This implies that even for biased estimates, $T\geq7$ would suffice to reach a stable solution.
 
 
 ### $Q=\beta$.
-For the estimated regression coefficients, we first consider bias, before discussing CR and CIW. As Figure \ref{fig:Qs}D shows, the bias in $\bar{Q}$ is affected by both the proportion of incomplete cases and the number of iterations. Similar to $Q=r^2$, we observe approximately unbiased estimates after at least one, and at most seven iterations, depending on $p_{\mathrm inc}$. Completely unbiased estimates are only obtained in conditions where $T\geq3$ and $p_{\mathrm inc}\leq .50$. Despite persistent bias in conditions where $p_{\mathrm inc}\geq.75$, the coverage rates are non-improving after just three iterations, irrespective of $p_{\mathrm inc}$. We conclude that any condition where $T\geq3$ yields approximately nominal coverage rates, and thus confidence-valid estimates.
-The nominal coverages can be explained by the CIWs. The CIWs depicted in Figure \ref{fig:Qs}F are conform the theoretical foundation of MI: CIs are wider in conditions with higher proportions of incomplete cases (i.e., there is less information in the data, and thus more uncertainty due to missingness). Since conditions with higher $p_{\mathrm inc}$ result in both wider CIs and more severe bias, the true value of $Q$ may be included in the CI, despite of the bias in $\bar{Q}$.
+For the estimated regression coefficients, we first consider bias, before discussing CR and CIW. As Figure \ref{fig:Qs}D shows, the bias in $\bar{Q}$ is affected by both the proportion of incomplete cases and the number of iterations. Similar to $Q=r^2$, we observe approximately unbiased estimates after at least one, and at most seven iterations, depending on $p_{\mathrm{inc}}$. Completely unbiased estimates are only obtained in conditions where $T\geq3$ and $p_{\mathrm{inc}}\leq .50$. Despite persistent bias in conditions where $p_{\mathrm{inc}}\geq.75$, the coverage rates are non-improving after just three iterations, irrespective of $p_{\mathrm{inc}}$. We conclude that any condition where $T\geq3$ yields approximately nominal coverage rates, and thus confidence-valid estimates.
+The nominal coverages can be explained by the CIWs. The CIWs depicted in Figure \ref{fig:Qs}F are conform the theoretical foundation of MI: CIs are wider in conditions with higher proportions of incomplete cases (i.e., there is less information in the data, and thus more uncertainty due to missingness). Since conditions with higher $p_{\mathrm{inc}}$ result in both wider CIs and more severe bias, the true value of $Q$ may be included in the CI, despite of the bias in $\bar{Q}$.
 We conclude that approximately unbiased estimates may be obtained in conditions where $T\geq7$, whereas confidence-valid estimates require at most three iterations. 
 
 
 ### Summary. 
-These results demonstrate that the estimates of univariate scientific estimands $Q$ are not impacted by early stopping of the MICE algorithm or the proportion of incomplete cases in $y$. Unbiased estimates may be obtained after just one iteration. Multivariate estimates, by contrast, are affected by both the number of iterations and the proportion of missing cases. Completely unbiased estimates are only obtained under low to moderate missingness ($p_{\mathrm inc}\leq.50$), after at most three iterations. We observe approximately unbiased estimates after at most seven iterations (for any $p_{\mathrm inc}$ considered). This implies that the algorithm produces stable, non-improving estimates when $T\geq7$. 
+These results demonstrate that the estimates of univariate scientific estimands $Q$ are not impacted by early stopping of the MICE algorithm or the proportion of incomplete cases in $y$. Unbiased estimates may be obtained after just one iteration. Multivariate estimates, by contrast, are affected by both the number of iterations and the proportion of missing cases. Completely unbiased estimates are only obtained under low to moderate missingness ($p_{\mathrm{inc}}\leq.50$), after at most three iterations. We observe approximately unbiased estimates after at most seven iterations (for any $p_{\mathrm{inc}}$ considered). This implies that the algorithm produces stable, non-improving estimates when $T\geq7$. 
 
 
 ## Non-convergence diagnostics
 
-Figure \ref{fig:rhats-acs} displays results of the eight sets of diagnostic methods. The two columns in the figure represent the  non-convergence diagnostics $\widehat{R}$ and $AC$; the rows depict the four scalar summaries $\theta$ under consideration. The first row in Figure \ref{fig:rhats-acs} thus shows $\widehat{R}$ and $AC$ applied on the chain means (panels A and B). In the second row, we see the diagnostics applied on the chain variances (C and D). The third row depicts the same for $\theta=\hat{Q}$ (E and F). And in the last row, we see the diagnostics applied on the novel $\theta$ to consider: $\lambda_1$ (G and H). We evaluate the performance of the methods by establishing whether they correctly identify conditions in which $\bar{Q}$ is *not* an unbiased, confidence-valid estimate of $Q$. As we concluded in the last section, substantially biased estimates were only obtained in conditions where $T\leq6$, and we observed non-nominal coverage only when $T\leq3$. However, there was some persistent bias in conditions where $p_{\mathrm inc}\geq.75$, irrespective of the number of iterations. If the diagnostic methods are appropriate for MI, we will detect non-convergence in these conditions.
+Figure \ref{fig:rhats-acs} displays results of the eight sets of diagnostic methods. The two columns in the figure represent the  non-convergence diagnostics $\widehat{R}$ and $AC$; the rows depict the four scalar summaries $\theta$ under consideration. The first row in Figure \ref{fig:rhats-acs} thus shows $\widehat{R}$ and $AC$ applied on the chain means (panels A and B). In the second row, we see the diagnostics applied on the chain variances (C and D). The third row depicts the same for $\theta=\hat{Q}$ (E and F). And in the last row, we see the diagnostics applied on the novel $\theta$ to consider: $\lambda_1$ (G and H). We evaluate the performance of the methods by establishing whether they correctly identify conditions in which $\bar{Q}$ is *not* an unbiased, confidence-valid estimate of $Q$. As we concluded in the last section, substantially biased estimates were only obtained in conditions where $T\leq6$, and we observed non-nominal coverage only when $T\leq3$. However, there was some persistent bias in conditions where $p_{\mathrm{inc}}\geq.75$, irrespective of the number of iterations. If the diagnostic methods are appropriate for MI, we will detect non-convergence in these conditions.
 
 
 ```{r rhats-acs, fig.height = 6.8, fig.cap="Non-convergence diagnostics $\\widehat{R}$ and $AC$ applied on several $\\theta$s. The left-hand side of the figure contains $\\widehat{R}$-values, and the right-hand side contains $AC$-values. Depicted in the rows are the scalar summaries $\\theta$: chain mean, chain variance, the quantity of scientific interest $\\hat{Q}$, and the first eigenvalue of the variance-covariance matrix $\\lambda_1$. The dashed gray lines depict the different thresholds to diagnose non-convergence."}
@@ -795,18 +768,18 @@ As panel C and D in Figure \ref{fig:rhats-acs} show, the results of this set of 
 
 
 ### $\theta=\hat{Q}$.
-The $\widehat{R}$-values in Figure \ref{fig:rhats-acs}E show a similar trend across iterations as we observed for chain means and chain variances. Only conditions with a very high  proportion of missing cases ($p_{\mathrm inc}\geq.75$) diverge from the earlier observations. The $\widehat{R}$-values in these conditions do not taper off after 30 to 40 iterations, but rather between 40 to 50 iterations. The highest number of iterations at which non-convergence is still diagnosed according to the thresholds are 11 for $\widehat{R}>1.2$, 23 for $\widehat{R}>1.1$, and 100 for $\widehat{R}>1.01$ (not shown). 
+The $\widehat{R}$-values in Figure \ref{fig:rhats-acs}E show a similar trend across iterations as we observed for chain means and chain variances. Only conditions with a very high  proportion of missing cases ($p_{\mathrm{inc}}\geq.75$) diverge from the earlier observations. The $\widehat{R}$-values in these conditions do not taper off after 30 to 40 iterations, but rather between 40 to 50 iterations. The highest number of iterations at which non-convergence is still diagnosed according to the thresholds are 11 for $\widehat{R}>1.2$, 23 for $\widehat{R}>1.1$, and 100 for $\widehat{R}>1.01$ (not shown). 
 
-The $AC$-values also follow earlier observations, with the same exception as for $\widehat{R}$ (when $p_{\mathrm inc}\geq.75$). To reach maximum stationarity, these conditions require at most seven iterations instead of five. Moreover, the $AC$-values in these conditions exceed the threshold to diagnose non-convergence. Interestingly, this only occurs after ten or even thirty iterations, while we would expect more signs of trending early in the iterations. Since the $AC$-values are not improving or worsening when $T\geq7$, we conclude that non-convergence is incorrectly diagnosed based on the threshold.
+The $AC$-values also follow earlier observations, with the same exception as for $\widehat{R}$ (when $p_{\mathrm{inc}}\geq.75$). To reach maximum stationarity, these conditions require at most seven iterations instead of five. Moreover, the $AC$-values in these conditions exceed the threshold to diagnose non-convergence. Interestingly, this only occurs after ten or even thirty iterations, while we would expect more signs of trending early in the iterations. Since the $AC$-values are not improving or worsening when $T\geq7$, we conclude that non-convergence is incorrectly diagnosed based on the threshold.
 
 ### $\theta=\lambda_{1}$.
-Once again, we observe $\widehat{R}$-values with a similar trend across iterations. For this $\theta$, the results differ only in the most extreme missingness condition. When $p_{\mathrm inc}=.95$, we diagnose non-convergence at $T\leq9$ according to $\widehat{R}>1.2$, $T\leq19$ for $\widehat{R}>1.1$, and 100 for $\widehat{R}>1.01$ (not shown). The 'dip' in $\widehat{R}$-values at $T=3$ is even more pronounced than with other $\theta$s. Some $\widehat{R}$-values even overcome the threshold of 1.2. If we would terminate the algorithm at $T=3$, we would incorrectly conclude that the algorithm reached approximate convergence, according to this threshold.
+Once again, we observe $\widehat{R}$-values with a similar trend across iterations. For this $\theta$, the results differ only in the most extreme missingness condition. When $p_{\mathrm{inc}}=.95$, we diagnose non-convergence at $T\leq9$ according to $\widehat{R}>1.2$, $T\leq19$ for $\widehat{R}>1.1$, and 100 for $\widehat{R}>1.01$ (not shown). The 'dip' in $\widehat{R}$-values at $T=3$ is even more pronounced than with other $\theta$s. Some $\widehat{R}$-values even overcome the threshold of 1.2. If we would terminate the algorithm at $T=3$, we would incorrectly conclude that the algorithm reached approximate convergence, according to this threshold.
 
 $AC$-values are systematically higher for this $\theta$ than for other scalar summaries. The $AC$-values also taper off at a later point in the iterations. This suggests improving stationarity up-to ten, or even thirty iterations, depending on the missingness condition. According to the threshold, we should diagnose non-convergence at some point in any missingness condition. However, this occurs only after reasonably decreasing $AC$-values are obtained---again suggesting that non-convergence is incorrectly diagnosed.   
 
 
 ### Summary. 
-Overall, the methods to diagnose non-convergence perform as expected: they indicate more signs of non-convergence in conditions with worse performance in terms of bias and confidence-validity. Under low to moderate missingness, it does not seem to matter on which $\theta$ the non-convergence diagnostics are applied. If we look at complete unbiasedness, however, we notice that univariate $\theta$s fail to diagnose the persistent bias in conditions where $p_{\mathrm inc}\geq.75$. 
+Overall, the methods to diagnose non-convergence perform as expected: they indicate more signs of non-convergence in conditions with worse performance in terms of bias and confidence-validity. Under low to moderate missingness, it does not seem to matter on which $\theta$ the non-convergence diagnostics are applied. If we look at complete unbiasedness, however, we notice that univariate $\theta$s fail to diagnose the persistent bias in conditions where $p_{\mathrm{inc}}\geq.75$. 
 
 The number of iterations necessary to obtain approximately unbiased, confidence-valid estimates corresponds to the $\widehat{R}$ threshold 1.2. The thresholds 1.1 and 1.01 seem too strict compared to the validity of the inferences. The threshold to diagnose significant $AC$-values does not appear to be appropriate in at least the current set-up, and perhaps in iterative imputation in general. A better heuristic to diagnose non-stationarity with $AC$ may be through evaluation of the $AC$-values across iterations: If the values do not substantially decrease with $T$, approximate stationarity may be concluded.
 <!-- [similar to the elbow heuristic in PCA]. -->
@@ -815,7 +788,7 @@ The number of iterations necessary to obtain approximately unbiased, confidence-
 
 Before drawing any further conclusions, let us first return to the hypotheses that we formulated for the simulation study. 
 
-1. As hypothesized, biased, invalid estimates of quantities of scientific interest occurred more often in simulation conditions with a high proportion of incomplete cases $p_{\mathrm inc}$ and a low number of iterations $T$. However, this only holds for multivariate scientific estimands. Univariate $Q$s are not substantially impacted by early stopping.
+1. As hypothesized, biased, invalid estimates of quantities of scientific interest occurred more often in simulation conditions with a high proportion of incomplete cases $p_{\mathrm{inc}}$ and a low number of iterations $T$. However, this only holds for multivariate scientific estimands. Univariate $Q$s are not substantially impacted by early stopping.
 
 2. Our results also support the hypothesis that $\widehat{R}$ and $AC$ would correctly identify signs of non-convergence. We observed higher $\widehat{R}$ and $AC$-values in conditions where $\bar{Q}$s were biased, invalid estimates of $Q$s. 
 
@@ -831,7 +804,7 @@ Before drawing any further conclusions, let us first return to the hypotheses th
 
 We have shown that non-convergence in iterative imputation algorithms goes hand in hand with biased, invalid estimates---at least for the multivariate quantities of scientific interest considered in this study. Identifying non-convergence may be a crucial aspect of drawing valid statistical inferences from incomplete data. We concluded that the current practice of visually inspecting non-convergence through traceplots of univariate scalar summaries of the state-space of the algorithm does not suffice. We, therefore, considered eight sets of diagnostic methods to identify non-convergence: two non-convergence diagnostics ($\widehat{R}$ and $AC$), two univariate $\theta$s, a model-dependent multivariate $\theta$, and a novel, model-independent multivariate $\theta$. Signs of non-convergence due to early stopping were identified with each of the methods. Bias due to high proportions of incomplete cases was only identified with multivariate $\theta$s. 
 
-Since we obtained approximately unbiased, confidence-valid estimates after at most seven iterations, we conclude that the $\widehat{R}$ threshold 1.2 is the most appropriate diagnostic cut-off. The threshold to diagnose non-stationarity with $AC$ does not seem to apply. However, some signs of non-convergence were detected in simulation conditions many more iterations. Under moderate missingness ($p_{\mathrm inc}\leq.50$) $\widehat{R}$-values decreased substantially until 30 to 40 iterations, which implies that mixing in the algorithm still improved with each additional iteration. $AC$-values only improved until about six iterations, suggesting minimal improvement in trending was obtained beyond $T=6$ in the current simulation set-up. 
+Since we obtained approximately unbiased, confidence-valid estimates after at most seven iterations, we conclude that the $\widehat{R}$ threshold 1.2 is the most appropriate diagnostic cut-off. The threshold to diagnose non-stationarity with $AC$ does not seem to apply. However, some signs of non-convergence were detected in simulation conditions many more iterations. Under moderate missingness ($p_{\mathrm{inc}}\leq.50$) $\widehat{R}$-values decreased substantially until 30 to 40 iterations, which implies that mixing in the algorithm still improved with each additional iteration. $AC$-values only improved until about six iterations, suggesting minimal improvement in trending was obtained beyond $T=6$ in the current simulation set-up. 
 
 The main finding of this study is that valid inferences may be obtained much quicker than approximate algorithmic convergence is reached. Under the current specifications, univariate $Q$s did not require algorithmic convergence at all. They are unbiased almost instantly after the algorithm is initiated. Approximately unbiased, confidence-valid estimates of multivariate $Q$s were obtained after a maximum of seven iterations. Continued iterations beyond $T = 7$ did not yield better estimates.
 
