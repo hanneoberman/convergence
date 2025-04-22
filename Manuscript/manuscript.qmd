@@ -678,13 +678,18 @@ In each simulation repetition, we *ampute* the complete dataset conform six miss
 We consider all possible multivariate patterns of missingness, as visualized in Figure \ref{fig:patterns}. 
 
 
-```{r patterns, echo=FALSE, eval=FALSE}
+```{r patterns, echo=FALSE}
 source("../R/generate_datasets.R")
 pat <- create_patterns(3)
-d <- dat[1:10,]
-is.na(d) <- pat == 1
-d
-ggmice::plot_pattern(d)
+is.na(pat) <- pat == 1
+pat
+ggmice::plot_pattern(pat, caption = FALSE) +
+  theme(axis.text.x=element_blank(), 
+      axis.ticks.x=element_blank(), 
+      axis.text.y=element_blank(), 
+      axis.ticks.y=element_blank(),
+      axis.text = element_blank()) +
+  theme_void()
 ```
 
 We use the 'mice' package [function `mice::ampute()`; @mice] to obtain an incomplete dataset {$y_{\mathrm{obs}}, y_{\mathrm{mis}}$} for each of the six missingness conditions. 
