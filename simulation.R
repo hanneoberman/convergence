@@ -15,14 +15,14 @@ miceadds::source.all("./R")
 set.seed(11)
 
 # parameters
-n_sim <- 2000
+n_sim <- 200
 n_obs <- 200
 n_col <- 3
 corr <- 0.5
 beta <- 1
 betas <- rep(beta, n_col)
 mis_pat <- create_patterns(n_col)
-mis_mech = c("MCAR", "MAR")
+mis_mech = c("MCAR", "MAR", "MNAR")
 mis_prop = c(0.25, 0.5, 0.75)
 n_it <- 100
 
