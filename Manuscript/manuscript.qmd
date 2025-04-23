@@ -23,28 +23,33 @@ source("../R/evaluate_estimates.R")
 performance <- evaluate_est(out) 
 performance[performance$term == "b0", "term"] <- "Y"
 performance <- mutate(performance,
-  mech = factor(mech, levels = c("MCAR", "MAR"), ordered = TRUE),
+  mech = factor(mech, levels = c("MCAR", "MAR", "MNAR"), ordered = TRUE),
   prop = factor(prop, levels = c(0.25, 0.5, 0.75), ordered = TRUE),
   term = factor(term, levels = c("Y", "X1", "X2", "X3"), ordered = TRUE))
 results <- performance |> 
   group_by(method, mech, prop, .it, term) |> 
-  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), \(x) mean(x, na.rm = TRUE))) 
+  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), \(x) mean(x, na.rm = TRUE)))
+results_ll <- performance |> 
+  group_by(method, mech, prop, .it, term) |> 
+  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), \(x) quantile(x, probs = c(0.025), na.rm = TRUE))) 
+results_ul <- performance |> 
+  group_by(method, mech, prop, .it, term) |> 
+  summarise(across(c(bias, cov, ciw, ac_mean, psrf_mean, ac_sd, psrf_sd), \(x) quantile(x, probs = c(0.975), na.rm = TRUE))) 
+results <- left_join(results, results_ll, by = c("method", "mech", "prop", ".it", "term"), suffix = c("", "_ll"))
+results <- left_join(results, results_ul, by = c("method", "mech", "prop", ".it", "term"), suffix = c("", "_ul"))
 ```
 
 
 ```{r, echo=FALSE}
-# # plot results per sim rep
-# performance |>
-#   filter(term == "X1", mech == "MAR", method == "MICE", prop == 0.75) |>
-#   ggplot(aes(x = .it, y = bias)) + #, color = as.factor(prop)
-#   geom_line(aes(group = .sim)) +
-#   geom_smooth(method = "loess") +
-#   # labs(
-#   #   title = "Bias regression coefficient",
-#   #   x = "Iteration number",
-#   #   y = "Bias"
-#   # ) +
-#   theme_classic()
+results |>
+  filter(method == "MICE") |> 
+  ggplot(aes(x = .it, y = psrf_mean)) +
+  geom_hline(yintercept = 1, alpha = 0.1) + 
+  geom_line() +
+  geom_line(aes(y = psrf_mean_ll), linetype = "dashed") +
+  geom_line(aes(y = psrf_mean_ul), linetype = "dashed") +
+  facet_grid(term ~ prop + mech) +
+  theme_classic()
 ```
 
 ## Aims
@@ -404,10 +409,10 @@ Autocorrelation in the chain variances show us something similar (see \@ref(fig:
 ```{r psrf_mean}
 results |>
   filter(method == "MICE") |> 
-  ggplot(aes(x = .it, y = psrf_mean, color = mech, linetype = mech)) +
+  ggplot(aes(x = .it, y = psrf_mean)) +
   geom_hline(yintercept = 1, alpha = 0.1) + 
   geom_line() +
-  facet_grid(term ~ prop) +
+  facet_grid(term ~ prop + mech) +
   theme_classic()
 ```
 
