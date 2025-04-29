@@ -25,17 +25,13 @@ create_patterns <- function(n_col) {
   mis_pat <- expand.grid(pat_list) 
   names(mis_pat) <- c("Y", paste0("X", 1:n_col))
   # omit patterns with all/none missing
-  mis_pat <- mis_pat[rowSums(mis_pat) > 1 & rowSums(mis_pat) < n_col + 1, ]
+  mis_pat <- mis_pat[rowSums(mis_pat) > 0 & rowSums(mis_pat) < n_col, ]
   return(mis_pat)
 }
 
 # ampute the complete data
 induce_missingness <- function(
-    dat,
-    mis_pat = NULL, 
-    mis_mech = c("MCAR", "MAR"),
-    mis_prop = c(0.1, 0.25, 0.5)
-) {
+    dat, mis_pat, mis_mech, mis_prop) {
   # create a list of amputed data objects 
   # for each of the mechanisms and proportions
   amps <- purrr::map(mis_mech, function(mm) {
@@ -52,18 +48,24 @@ induce_missingness <- function(
 }
 
 # combine into one function
-create_data <- function(
-    sample_size = 200, 
-    correlations = 0.3,
-    effects = c(0.5, 0.5, 0.5),
-    patterns = NULL, 
-    mechanisms = c("MCAR", "MAR"),
-    proportions = c(0.1, 0.25, 0.5)
-) {
+create_data <- function(sample_size,
+                        correlations,
+                        effects,
+                        patterns,
+                        mechanisms,
+                        proportions) {
   # create a single complete dataset
-  dat <- generate_complete(n_obs = sample_size, n_col = length(effects), corr = correlations, betas = effects)
+  dat <- generate_complete(
+    n_obs = sample_size,
+    n_col = length(effects),
+    corr = correlations,
+    betas = effects
+  )
   # ampute the data with different missingness
-  amps <- induce_missingness(dat, mis_pat, mis_mech = mechanisms, mis_prop = proportions)
+  amps <- induce_missingness(dat,
+                             mis_pat = patterns,
+                             mis_mech = mechanisms,
+                             mis_prop = proportions)
   # output
   return(amps)
 }

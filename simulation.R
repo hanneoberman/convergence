@@ -16,15 +16,15 @@ set.seed(11)
 
 # parameters
 n_sim <- 200
-n_obs <- 200
+n_obs <- 500
 n_col <- 3
 corr <- 0.5
 beta <- 1
 betas <- rep(beta, n_col)
 mis_pat <- create_patterns(n_col)
-mis_mech = c("MCAR", "MAR", "MNAR")
-mis_prop = c(0.25, 0.5, 0.75)
-n_it <- 100
+mis_mech = c("MCAR") #, "MAR", "MNAR")
+mis_prop = c(0.05, 0.25, 0.5, 0.75, 0.95)
+n_it <- 50
 
 # #################################
 # ### TEST LOWER LEVEL FUCTIONS ###
@@ -34,7 +34,7 @@ n_it <- 100
 # dat <- generate_complete(n_obs, n_col, corr, betas)
 # 
 # # ampute data
-# amps <- induce_missingness(dat, mis_pat, mis_mech = "MAR", mis_prop = 0.5)
+# amps <- induce_missingness(dat, mis_pat, mis_mech = "MCAR", mis_prop = 0.5)
 # 
 # ##################################
 # ### TEST HIGHER LEVEL FUCTIONS ###
@@ -47,10 +47,11 @@ n_it <- 100
 ### COMBINE INTO ONE FUCTION ###
 ################################
 
-simulate_once <- function(n_obs, betas, mis_pat, mis_mech, mis_prop) {
+simulate_once <- function(n_obs, corr, betas, mis_pat, mis_mech, mis_prop, n_it) {
   # generate incomplete data
   amps <- create_data(
     sample_size = n_obs,
+    correlations = corr,
     effects = betas,
     patterns = mis_pat,
     mechanisms = mis_mech,
@@ -66,7 +67,7 @@ simulate_once <- function(n_obs, betas, mis_pat, mis_mech, mis_prop) {
 # ### TEST SIMULATION FUNCTION ###
 # ################################
 # 
-# ests <- simulate_once(n_obs, betas, mis_pat, mis_mech, mis_prop)
+# ests <- simulate_once(n_obs, corr, betas, mis_pat, mis_mech, mis_prop, n_it)
 
 ######################
 ### RUN SIMULATION ###
@@ -90,7 +91,8 @@ library(pbapply)
 cl <- parallel::makeCluster(4)
 parallel::clusterExport(
   cl,
-  c("generate_complete",
+  c(
+    "generate_complete",
     "induce_missingness",
     "create_data",
     "apply_methods",
@@ -100,21 +102,33 @@ parallel::clusterExport(
     "evaluate_est",
     "estimate_param",
     "create_patterns",
-    "n_obs", "betas", "mis_pat", "mis_mech", "mis_prop",
+    "n_obs",
+    "betas",
+    "mis_pat",
+    "mis_mech",
+    "mis_prop",
     "simulate_once",
     "add_iteration",
-    "n_it", "n_sim", "n_col", "corr", "beta", "betas", "mis_pat", "mis_mech", "mis_prop"
-    
+    "n_it",
+    "n_sim",
+    "n_col",
+    "corr",
+    "beta",
+    "betas",
+    "mis_pat",
+    "mis_mech",
+    "mis_prop"
   )
 )
 
 out <- pbreplicate(n_sim, 
-                   simulate_once(n_obs, betas, mis_pat, mis_mech, mis_prop),
+                   simulate_once(n_obs, corr, betas, mis_pat, mis_mech, mis_prop, n_it),
                    cl = cl, 
                    simplify = FALSE)
 
 parallel::stopCluster(cl)
 
 out <- purrr::map(1:length(out), ~{cbind(.sim = .x, out[[.x]])}) 
-save(out, file = paste0("results/out", length(out), "sim", max(out[[1]]$.it), "it", ".RData"))
+
+save(out, file = paste0("results/out", length(out), "sim", max(out[[1]]$.it), "it", format(Sys.time(), "%e%b%Y"), ".RData"))
 save(out, file = "results/out.RData")
