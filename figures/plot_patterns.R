@@ -50,7 +50,7 @@ plot_patterns <- function(n_col = 4) {
       "missing" = "#B61A51B3"
     )) +
     ggplot2::scale_alpha_continuous(limits = c(0, 1), guide = "none") +
-    ggplot2::scale_x_continuous(breaks = 1:cls, labels = vrb) +
+    ggplot2::scale_x_continuous(breaks = 1:cls, labels = vrb, position = "top") +
     ggplot2::scale_y_continuous(breaks = NULL, labels = NULL) +
     ggmice:::theme_minimice() +
     labs(fill = "", x = "Variables", y = "Patterns")
