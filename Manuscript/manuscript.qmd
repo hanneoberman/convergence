@@ -130,14 +130,15 @@ The state-space of the algorithm at a certain iteration $t$ may be summarized by
 
 1. Specify an imputation model for each variable $Y_j$, where $j = 1,...,p$.
 2. Repeat over variables ($j = 1,...,p$).
-2. Repeat over imputations ($\ell = 1,...,m$).
-    a. Fill in starting imputations ($\dot{Y_j^0}$) by random draws from the observed part of each variable ($Y_{j}^{\mathrm{obs}}$).
+    2. Repeat over imputations ($\ell = 1,...,m$).
+        a. Fill in starting imputations ($\dot{Y_j^0}$) by random draws from the observed part of each variable ($Y_{j}^{\mathrm{obs}}$).
 3. End repeat $j$.
 
 **Iteration phase ($t = 1,...,\tau$)**
 
 4. Repeat over iterations ($t = 1,...,\tau$).
     a. Repeat over variables ($j = 1,...,p$).
+        
         I. Define $\dot{\mathbf{Y}}_{-j}^t$ as the currently complete data *except* variable $Y_j$ at iteration $t$, where $\dot{\mathbf{Y}}_{-j}^t = (\dot Y_1^t,\dots,\dot Y_{j-1}^t,\dot Y_{j+1}^{t-1},\dots,\dot Y_p^{t-1})$.
         II. Draw imputation model parameters $\dot\phi_j^t$ from the posterior predictive distribution of the observed data, where $\dot\phi_j^t \sim P(\phi_j^t|Y_j^\mathrm{obs}, \dot Y_{-j}^t, R)$.
         III. Draw imputations $\dot Y_j^t$, where $\dot Y_j^t \sim P(Y_j^\mathrm{mis}|Y_j^\mathrm{obs},  \dot Y_{-j}^t, R, \dot\phi_j^t)$.
@@ -217,7 +218,7 @@ In 2021, Vehtari et al. published an updated version of the potential scale redu
 W&=\frac{1}{m} \sum_{\ell=1}^{m} s_{\ell}^{2}, \text { where } s_{\ell}^{2}=\frac{1}{\tau-1} \sum_{t=1}^{\tau}\left(\theta^{(t \ell)}-\bar{\theta}^{(\cdot \ell)}\right)^{2}. 
 \end{align*}
 
-\noindent We then estimate between-chain variance $B$ (note that we diverge from the typical notation in MI, where $B$ denotes the variance between the estimated quantities of scientific interest $\hat{Q}_{\ell}$). $B$ is defined as the variance of the collection of average $\theta$s per chain: 
+\noindent We then estimate between-chain variance $B$ (note that we diverge from the typical notation in MI, where $B$ denotes the variance between the estimated quantities of scientific interest $\hat{Q}_{\ell}$ TODO: add not between imp var cf Rubin). $B$ is defined as the variance of the collection of average $\theta$s per chain: 
 
 \begin{align*}
 B&=\frac{\tau}{m-1} \sum_{\ell=1}^{m}\left(\bar{\theta}^{(\cdot \ell)}-\bar{\theta}^{(\cdot \cdot)}\right)^{2}, \text { where } \bar{\theta}^{(\cdot \ell)}=\frac{1}{\tau} \sum_{t=1}^{\tau} \theta^{(t \ell)} \text{, } \bar{\theta}^{(\cdot \cdot)}=\frac{1}{m} \sum_{\ell=1}^{m} \bar{\theta}^{(\cdot \ell)}. 
@@ -290,6 +291,7 @@ MCAR, MAR              &   & 25\%, 50\%, 75\%                \\ \hline
 \end{tabular}
 \end{table}
 
+TODO: table captions
 
 In each simulation repetition, we first generate a complete set of $n_{\mathrm{obs}} = 200$ cases, representing person-data in a multiple linear regression problem. The predictor space consists of three multivariately normal random variables, 
 
@@ -396,7 +398,9 @@ AC, $\widehat{R}$           &          & chain means, chain variances &         
 
 # Simulation results
 
-The following figures display the simulation results for the sixteen diagnostic identifier-parameter-variable pairs, and sixteen performance measure-variable pairs, contrasted to the number of iterations in the imputation algorithm. Within the figures, we split the results according to the missingness conditions [TODO: missingness mechanisms as line types, and proportion of incomplete cases as colors?]. Note that these results are averages of the $n_{sim} = 2000$ simulation repetitions.
+<!-- The following figures display the simulation results for non-convergence diagnostics and performance measures, contrasted to the number of iterations in the imputation algorithm. Within the figures, we split the results according to the missingness conditions. Note that these results are averages of the $n_{sim} = 2000$ simulation repetitions. -->
+
+<!-- [TODO: missingness mechanisms as line types, and proportion of incomplete cases as colors?] -->
 
 Our results show the non-convergence metrics and the performance of the MICE algorithm under different missingness conditions at a varying number of iterations. For reasons of brevity, we only discuss results for the worst-performing estimates in terms of bias and coverage, $X_3$. Full results are available from [TODO: add repo DOI]. [TODO: add tables, with MC SEs, to appendix.]
 
@@ -406,15 +410,15 @@ Our results show the non-convergence metrics and the performance of the MICE alg
 
 Figures @fig-ac_mean and @fig-ac_sd show the autocorrelations in the chain means and chain variances, respectively.
 
-```{r fig-ac_mean}
-plot_results(results, "ac_mean", 0, "MCAR")
+```{r fig-ac_mean, fig.cap="Autocorrelation in the chain means. The dashed line indicates perfect stationarity, $AC=0$. The solid black line indicates the avarage autocorrelation accross simulation repetitions, with grey lines representing the empirical confidence interval."}
+plot_results2(results, "ac_mean", 0, "MCAR")
 ```
 
 Autocorrelation in the chain means decreases rapidly in the first few iterations (see @fig-ac_mean). The decrease is substantive until $n_{it} \geq 6$. This means that there is some initial trending within chains, but the average imputed value quickly reaches stationarity. These results hold irrespective of the missingness condition.
 
 
-```{r fig-ac_sd}
-plot_results(results, "ac_sd", 0, "MCAR")
+```{r fig-ac_sd, fig.cap="Autocorrelation in the chain variances. The dashed line indicates perfect stationarity, $AC=0$. The solid black line indicates the avarage autocorrelation accross simulation repetitions, with grey lines representing the empirical confidence interval."}
+plot_results2(results, "ac_sd", 0, "MCAR")
 ```
 
 Autocorrelation in the chain variances show us something similar (see @fig-ac_sd). The number of iterations that is required to reach non-improving autocorrelations is somewhat more ambiguous than for chain means, but generally around $n_{it} \geq 10$. We do not observe a systematic difference between missingness conditions here either. 
@@ -423,15 +427,15 @@ Autocorrelation in the chain variances show us something similar (see @fig-ac_sd
 
 Figure @fig-psrf_mean and @fig-psrf_sd show the potential scale reduction factor in the chain means and chain variances respectively.
 
-```{r fig-psrf_mean}
-plot_results(results, "psrf_mean", 1, "MCAR")
+```{r fig-psrf_mean, fig.cap="PSRF in the chain means. The dashed line indicates perfect mixing, $\\widehat{R}=0$. The solid black line indicates the avarage PSRF accross simulation repetitions, with grey lines representing the empirical confidence interval."}
+plot_results2(results, "psrf_mean", 1, "MCAR")
 ```
 
 We observe that $\widehat{R}$-values of the chain means generally decrease as a function of the number of iterations (see @fig-psrf_mean). An exception to this observation is a steep increase in iterations $3 \leq n_{it} \leq 5$ [TODO: interpret?? due to initialization or is there really more mixing initially??]. After the first couple of iterations, the mixing between chain means generally improves until $n_{it} \geq 30$ to $40$. There is no apparent differentiation between the missingness conditions. 
 
 
-```{r fig-psrf_sd}
-plot_results(results, "psrf_sd", 1, "MCAR")
+```{r fig-psrf_sd, fig.cap="PSRF in the chain variances. The dashed line indicates perfect mixing, $\\widehat{R}=0$. The solid black line indicates the avarage PSRF accross simulation repetitions, with grey lines representing the empirical confidence interval."}
+plot_results2(results, "psrf_sd", 1, "MCAR")
 ```
 
 The mixing between chain variances mimics the mixing between chain means almost perfectly (see @fig-psrf_sd. Irrespective of the missingness condition, the $\widehat{R}$-values taper off around $n_{it} \geq 30$. 
@@ -442,23 +446,25 @@ The mixing between chain variances mimics the mixing between chain means almost 
 
 In Figures @fig-bias - @fig-ciw we show the performance measures: bias in the regression estimate, the empirical coverage rate of the regression estimate and the average confidence interval width of this estimate.
 
-```{r fig-bias}
-plot_results(results, "bias", 0, "MCAR")
+```{r fig-bias, fig.height=8, fig.cap="Bias in regression coefficient $\\beta = 1$. The dashed line indicates no bias. The solid black line indicates the avarage bias accross simulation repetitions, with grey lines representing the empirical confidence interval."}
+plot_results2(results, "bias", 0, "MCAR")
 ```
+
+<!-- TODO: free-y in facet grid? Y, X1 en X3 naar appendix, CI not dashed -->
 
 We see that within a few iterations the bias in the regression estimate approaches zero (see @fig-bias). When $n_{it} \geq 6$, even the worst-performing conditions (e.g., with a proportion of incomplete cases of 75%) produce stable, non-improving estimates.  [TODO: check if regression coefficients are first underestimated because there is less info to estimate the relation??] [TODO: write about: more missingness = more extreme bias, but also steeper decrease over iterations].
 
 
-```{r fig-cov}
-plot_results(results, "cov", 0.95, "MCAR")
+```{r fig-cov, fig.cap="Coverage rate of regression coefficient $\\beta = 1$. The dashed line indicates confidence-validity. The solid black line indicates the avarage coverage rate accross simulation repetitions, with grey lines representing the empirical confidence interval."}
+plot_results2(results, "cov", 0.95, "MCAR")
 ```
 
 Nominal coverage is quickly reached (see @fig-cov). After just three iterations, the coverage rates are non-improving in every missingness condition. 
 <!-- no clear trend across conditions-->
 
 
-```{r fig-ciw}
-plot_results(results, "ciw", NULL, "MCAR")
+```{r fig-ciw, fig.cap="Confidence interval width of regression coefficient $\\beta = 1$. The solid black line indicates the avarage CIW accross simulation repetitions, with grey lines representing the empirical confidence interval."}
+plot_results2(results, "ciw", NULL, "MCAR")
 ```
 
 The average confidence interval width decreases quickly with every added iteration until a stable plateau is reached (see @fig-ciw). Depending on the proportion of incomplete cases this takes up-to $n_{it} \geq 9$. [TODO: write about: more missingness = wider CIs, with steeper decrease in CIW, but not stababiling at same value between missingness conditions.]
@@ -547,12 +553,21 @@ Overall, the methods to diagnose non-convergence perform as expected: they indic
 
 # Discussion
 
+## Conclusion
+
 Identifying non-convergence may be a crucial aspect of drawing valid statistical inferences from incomplete data. In this simulation study, we have shown that non-convergence in iterative imputation algorithms does indeed go hand in hand with biased, invalid estimates. Our study , however, found that inferential validity was achieved after five to ten iterations, much earlier than indicated by non-convergence identifiers. While  convergence diagnostics kept improving substantially until $\tau \approx 20-30$, performance measures did not improve after $\tau = 9$. Of course, it never hurts to iterate longer, but such calculations hardly brought added value. 
 
 The main finding of this study is that valid inferences may be obtained much quicker than approximate algorithmic convergence is reached. Under the current specifications, approximately unbiased, confidence-valid estimates were obtained after a maximum of nine iterations. Continued iterations beyond $\tau = 9$ did not yield better estimates.
 In contrast, $\widehat{R}$-values decreased substantially until 20 to 30 iterations, which implies that mixing in the algorithm still improved with each additional iteration. $AC$-values only improved until about six iterations, suggesting minimal improvement in trending was obtained beyond $\tau=6$ in the current simulation set-up.
 
+## Limitations
+
+The potential scale reduction factor metric assumes over-dispersed starting values of the iterative algorithm. The MICE algorithm does not start in an over-dispersed state.  MICE does not rely on starting values for parameters at all: instead, the algorithm is initialized based on a 'zeroth' iteration, where missing values are filled in using a random draw from observed values. Under MCAR, this would typically not yield an over-dispersed state at all, depending on the parameter of interest: means and variances are not affected, regression coefficients and other multivariate parameters start biased downwards (because sampling starting values distorts multivariate structures in the data). Whether this accrues to over-dispersion is questionable. Under MAR (or MNAR), some over-dispersion might occur when the observed data and imputed data differ impactfully. The algorithm should 'escape' the initial state (based on the starting values drawn from observed data alone). Over iterations, all parameters of interest (e.g. means, variances, multivariate estimands) should converge towards a stable state. Moreover, the MICE algorithm is initialized with more information than a typical MCMC algorithm: parameter estimates depend not only on imputed data, but also on observed data that does not change over iterations. Therefore, the initial state of the algorithm is 'too good' to observe a relative decrease in $\widehat{R}$.
+
+
 [TODO: write about: methodological explanation is that rhat and ac have a lag (too few iterations to inform your statistic) --\> will always indicate convergence slower than inferential validity is reached]
+
+## Implications
 
 In short, the validity of iterative imputation stands or falls with algorithmic convergence---or so it's thought. We have shown that iterative imputation algorithms can yield correct outcomes even when a converged state has not yet formally been reached. Any further iterations just burn computational resources without improving the statistical inferences. 
 
