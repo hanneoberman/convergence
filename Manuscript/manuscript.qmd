@@ -247,7 +247,7 @@ We can interpret $AC$-values as a measure of non-stationarity. If there is depen
 
 <!--  [TODO: check this! isn't it because of under-dispersion and reliance on observed data?] It is unlikely that iterative algorithms such as MICE will achieve the ideal values of $\widehat{R}=1$ and $AC=0$. Because of its convergence to a distribution, the algorithm will show some signs of non-mixing and non-stationarity even in the most converged state. The aim, therefore, is to reach approximate convergence [@gelm13]. -->
  
-Upon approximate convergence, the imputation chains intermingle such that the only difference between the chains is caused by the randomness induced by the algorithm ($\widehat{R} \gtrapprox 1$), and there is little dependency between subsequent iterations of imputation chains ($AC \gtrapprox 0$). In practice, we diagnose non-convergence when approximate convergence is violated, i.e., when $\widehat{R}$ and $AC$ exceed a certain threshold. The conventional thresholds to diagnose non-mixing are $\widehat{R} > 1.2$ [@gelm92] or $\widehat{R} > 1.1$ [@gelm13]. @vehtari2021 proposed a much more stringent threshold of $\widehat{R} > 1.01$. The magnitude of $AC$-values may be evaluated statistically, using a Wald test with $AC=0$ as null hypothesis [@box15]. $AC$-values that are significantly higher than zero indicate non-stationarity.
+Upon approximate convergence, the imputation chains intermingle such that the only difference between the chains is caused by the randomness induced by the algorithm ($\widehat{R} \approx 1$), and there is little dependency between subsequent iterations of imputation chains ($AC \approx 0$). In practice, we diagnose non-convergence when approximate convergence is violated, i.e., when $\widehat{R}$ and $AC$ exceed a certain threshold. The conventional thresholds to diagnose non-mixing are $\widehat{R} > 1.2$ [@gelm92] or $\widehat{R} > 1.1$ [@gelm13]. @vehtari2021 proposed a much more stringent threshold of $\widehat{R} > 1.01$. The magnitude of $AC$-values may be evaluated statistically, using a Wald test with $AC=0$ as null hypothesis [@box15]. $AC$-values that are significantly higher than zero indicate non-stationarity.
 <!-- Threshold Rhat > 1.1 @gelm13, p. 288 -->
 
 # Simulation set-up
@@ -374,7 +374,7 @@ $\beta_0$, $\beta_1$, $\beta_2$, $\beta_3$   &   &   bias, coverage rate, CI wid
 \end{tabular}
 \end{table}
 
-We evaluate the pooled estimates against their true population values using the performance measures bias, confidence interval width, and coverage rate, as recommended by van Buuren (-@buur18 $\S$ 2.5.2). We calculate bias as $\bar{Q} - Q$. CR is defined as the percentage of simulation repetitions in which the 95\% confidence interval (CI) around $\bar{Q}$ covers the true estimand $Q$. Finally, we inspect CI width (CIW): the difference between the lower and upper bound of the 95\% confidence interval around $\bar{Q}$. CIW is of interest because it is a measure of efficiency. Under nominal coverage, short CIs are preferred, since wider CIs indicate lower statistical power.
+We evaluate the pooled estimates against their true population values using the performance measures bias, confidence interval width, and coverage rate, as recommended by van Buuren (-@buur18 $\S$ 2.5.2). We calculate bias as $\bar{Q} - Q$. CR is defined as the proportion of simulation repetitions in which the 95\% confidence interval (CI) around $\bar{Q}$ covers the true estimand $Q$. Finally, we inspect CI width (CIW): the difference between the lower and upper bound of the 95\% confidence interval around $\bar{Q}$. CIW is of interest because it is a measure of efficiency. Under nominal coverage, short CIs are preferred, since wider CIs indicate lower statistical power.
 
 <!-- We evaluate the diagnostic methods to identify non-convergence against these performance measures. $\widehat{R}$ and $AC$ should identify non-convergence in simulation conditions, where $\bar{Q}$ is *not* an unbiased, confidence-valid estimate of $Q$. -->
 
@@ -414,7 +414,7 @@ Figures @fig-ac_mean and @fig-ac_sd show the autocorrelations in the chain means
 plot_results2(results, "ac_mean", 0, "MCAR")
 ```
 
-Autocorrelation in the chain means decreases rapidly in the first few iterations (see @fig-ac_mean). The decrease is substantive until $n_{it} \geq 6$. This means that there is some initial trending within chains, but the average imputed value quickly reaches stationarity. These results hold irrespective of the missingness condition.
+[TODO: edit!] Autocorrelation in the chain means decreases rapidly in the first few iterations (see @fig-ac_mean). The decrease is substantive until $n_{it} \geq 6$. This means that there is some initial trending within chains, but the average imputed value quickly reaches stationarity. These results hold irrespective of the missingness condition.
 
 
 ```{r fig-ac_sd, fig.cap="Autocorrelation in the chain variances. The dashed line indicates perfect stationarity, $AC=0$. The solid black line indicates the avarage autocorrelation accross simulation repetitions, with grey lines representing the empirical confidence interval."}
@@ -553,19 +553,23 @@ Overall, the methods to diagnose non-convergence perform as expected: they indic
 
 # Discussion
 
-## Conclusion
+<!-- ## Conclusion -->
 
 Identifying non-convergence may be a crucial aspect of drawing valid statistical inferences from incomplete data. In this simulation study, we have shown that non-convergence in iterative imputation algorithms does indeed go hand in hand with biased, invalid estimates. Our study , however, found that inferential validity was achieved after five to ten iterations, much earlier than indicated by non-convergence identifiers. While  convergence diagnostics kept improving substantially until $\tau \approx 20-30$, performance measures did not improve after $\tau = 9$. Of course, it never hurts to iterate longer, but such calculations hardly brought added value. 
 
 The main finding of this study is that valid inferences may be obtained much quicker than approximate algorithmic convergence is reached. Under the current specifications, approximately unbiased, confidence-valid estimates were obtained after a maximum of nine iterations. Continued iterations beyond $\tau = 9$ did not yield better estimates.
 In contrast, $\widehat{R}$-values decreased substantially until 20 to 30 iterations, which implies that mixing in the algorithm still improved with each additional iteration. $AC$-values only improved until about six iterations, suggesting minimal improvement in trending was obtained beyond $\tau=6$ in the current simulation set-up.
 
-## Limitations
+<!-- ## Limitations -->
+
+[TODO: add segway]
+
+[TODO: write about: methodological explanation is that rhat and ac have a lag (too few iterations to inform your statistic) --\> will always indicate convergence slower than inferential validity is reached]
 
 The potential scale reduction factor metric assumes over-dispersed starting values of the iterative algorithm. The MICE algorithm does not start in an over-dispersed state.  MICE does not rely on starting values for parameters at all: instead, the algorithm is initialized based on a 'zeroth' iteration, where missing values are filled in using a random draw from observed values. Under MCAR, this would typically not yield an over-dispersed state at all, depending on the parameter of interest: means and variances are not affected, regression coefficients and other multivariate parameters start biased downwards (because sampling starting values distorts multivariate structures in the data). Whether this accrues to over-dispersion is questionable. Under MAR (or MNAR), some over-dispersion might occur when the observed data and imputed data differ impactfully. The algorithm should 'escape' the initial state (based on the starting values drawn from observed data alone). Over iterations, all parameters of interest (e.g. means, variances, multivariate estimands) should converge towards a stable state. Moreover, the MICE algorithm is initialized with more information than a typical MCMC algorithm: parameter estimates depend not only on imputed data, but also on observed data that does not change over iterations. Therefore, the initial state of the algorithm is 'too good' to observe a relative decrease in $\widehat{R}$.
 
 
-[TODO: write about: methodological explanation is that rhat and ac have a lag (too few iterations to inform your statistic) --\> will always indicate convergence slower than inferential validity is reached]
+
 
 ## Implications
 
@@ -744,3 +748,4 @@ Each panel in Figure \ref{fig:diagnostics} depicts one method to identify non-co
 
 <!-- In short, both non-convergence diagnostics have a version that may be appropriate for iterative imputation algorithms. We will compute $\widehat{R}$ conform @vehtari2021, and calculate $AC$ manually. The diagnostics will be applied to the four types of scalar summaries $\theta$ described earlier: chain means, chain variances, a quantity of scientific interest, and the first eigenvalue of the variance-covariance matrix. We evaluate the performance of these eight sets of diagnostic methods (two diagnostics; four $\theta$s) through simulation. -->
 
+# References
