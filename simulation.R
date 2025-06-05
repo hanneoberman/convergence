@@ -15,7 +15,7 @@ miceadds::source.all("./R")
 set.seed(11)
 
 # parameters
-n_sim <- 200
+n_sim <- 20
 n_obs <- 500
 n_col <- 3
 corr <- 0.5
