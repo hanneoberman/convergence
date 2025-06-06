@@ -1,32 +1,11 @@
 # functions to calculate PSRF and AC
-vrbs <- names(data$data)
-p <- length(vrbs)
-m <- as.integer(data$m)
-tau <- as.integer(data$iteration)
-out <- expand.grid(.it = seq_len(tau), vrb = vrbs)
-
-# # Setup
-# vrbs <- names(data$data)
-# t <- data$iteration
-# m <- data$m
-# out <- expand.grid(.it = seq_len(t), vrb = vrbs)
-# 
-# # Extract parameter array and align by variable name
-# arr <- if (parameter == "mean") data$chainMean else sqrt(data$chainVar)
-# arr_perm <- aperm(arr[vrbs, , , drop = FALSE], c(2L, 3L, 1L))  # [it, m, var]
-# param <- lapply(vrbs, function(vrb) arr_perm[, , vrb])
-# names(param) <- vrbs
-
-## dev objects
-# library(mice)
-# data <- mice(nhanes)
 extract_thetas <- function(imp, parameter = "mean") {
   # extract the theta values from the MICE object
   vrbs <- names(data$data)
   if (parameter == "mean") {
-  thetas <- lapply(vrbs, function(vrb) {
-    aperm(data$chainMean[vrbs, , , drop = FALSE], c(2L, 3L, 1L))[, , vrb]
-  })
+    thetas <- lapply(vrbs, function(vrb) {
+      aperm(data$chainMean[vrbs, , , drop = FALSE], c(2L, 3L, 1L))[, , vrb]
+    })
   }
   if (parameter == "sd" | parameter == "variance") {
     thetas <- lapply(vrbs, function(vrb) {
@@ -37,35 +16,45 @@ extract_thetas <- function(imp, parameter = "mean") {
   return(thetas)
 }
 
-# # compute autocorrelation
-# # correlation between the t-th and (t-1)-th iteration in the MICE algorithm per variable
-# # using base R functions only
-# 
-# cor(thetas[["bmi"]][1:(tau-1), 1], thetas[["bmi"]][2:tau, 1], use = "pairwise.complete.obs")
-# chains <- thetas[[2]]
-
-# compute PSRF, with Vehtari et al. (2019) modifications
-psrf_max <- function(chains) {
-  # original cf. Gelman and Rubin (1992) 
-  rhat_original <- psrf_metric(chains)
-  # adjusted cf. Vehtari et al. (2019) 
-  rhat_bulk <- chains |> split_chains() |> z_scale() |> psrf_metric()
-  rhat_tail <- chains |> fold_chains() |> split_chains() |> z_scale() |> psrf_metric()
-  # return the maximum of the three
-  rhat_max <- max(rhat_bulk, rhat_tail, rhat_original, na.rm = TRUE)
-  return(rhat_max)
+# compute PSRF, original and with Vehtari et al. (2019) modifications
+calculate_psrf <- function(chains, type = "original") {
+  # type == c("original", "bulk", "tail", "max")
+  # do not compute on variables without imputations
+  none_imputed <- all(is.nan(chains))
+  if (none_imputed) {
+    rhat <- NA
+  }
+  if (!none_imputed) {
+    if (type == "original" | type == "max") {
+      # original cf. Gelman and Rubin (1992)
+      rhat <- rhat_original <- psrf_chain(chains) # original
+    }
+    if (type == "bulk" | type == "max") {
+      # adjusted cf. Vehtari et al. (2019)
+      rhat <- rhat_bulk <- chains |>
+        split_chains() |>
+        z_scale() |>
+        psrf_chain() # bulk
+    }
+    if (type == "tail" | type == "max") {
+      rhat <- rhat_tail <- chains |>
+        fold_chains() |>
+        split_chains() |>
+        z_scale() |>
+        psrf_chain() # tail
+    }
+    if (type == "max") {
+      # return the maximum of the three per iteration
+      apply(cbind(rhat_original, rhat_bulk, rhat_tail),
+            1,
+            max,
+            na.rm = TRUE)
+      # rhat_max <- max(rhat_original, rhat_bulk, rhat_tail, na.rm = TRUE)
+    }
+  }
+  return(rhat)
 }
-  
-#   map_dfr(2:tau, function(it) {
-#   # compute original r hat conform Gelman and Rubin (1992) 
-#   rhat_original <- x[1:it,] %>% get.rhat()
-#   # compute r hat in all ways described by Vehtari et al. (2019)
-#   rhat_bulk <-
-#     x[1:it,] %>% split_chains() %>% z_scale() %>% get.rhat()
-#   rhat_tail <-
-#     x[1:it,] %>% fold_sims() %>% split_chains() %>% z_scale() %>% get.rhat()
-#   max(rhat_bulk, rhat_tail) %>% data.frame(r.hat.max = ., r.hat = rhat_original) #%>% set_names("r.hat")
-# }) %>% rbind(NA, .) %>% cbind(iteration = 1:t, .)
+
 
 # fold chains for rhat of tails
 fold_chains <- function(chains) {
@@ -86,13 +75,13 @@ split_chains <- function(chains) {
   else {
     # split each chain to get 2m chains
     lower <- 1:floor(tau / 2)
-    upper <- ceiling((tau / 2) + 1):t
+    upper <- ceiling((tau / 2) + 1):tau
     splits <- base::cbind(chains[lower, ], chains[upper, ])
     return(splits)
   }
 }
 
-# rank-normalize chains 
+# rank-normalize chains
 z_scale <- function(chains) {
   # rank-normalize Markov chain, adapted from {rstan}
   m_it <- length(chains)
@@ -107,7 +96,7 @@ z_scale <- function(chains) {
   return(z)
 }
 
-# compute rhat
+# compute rhat for 1 iteration for 1 variable
 psrf_metric <- function(chains) {
   # compute potential scale reduction factor (rhat) for each variable in mids object
   # equations adapted from Vehtari et al. (2019)
@@ -125,26 +114,44 @@ psrf_metric <- function(chains) {
   # rhat
   rhat <-
     sqrt((var_between / var_within + tau - 1) / tau)
-
+  
   # output
   return(rhat)
 }
 
-# psrf at last iteration to each variable
-lapply(thetas, psrf_max)
-
-# psrf at each iteration
-calculate_psrf <- function(chains) {
+# apply to each iteration
+psrf_chain <- function(chains) {
   tau <- nrow(chains)
-  psrf_it <- numeric(tau)
+  rhats <- numeric(tau)
   for (it in seq_len(tau)) {
-      psrf_it[it] <- psrf_max(chains[1:it, , drop = FALSE])
+    rhats[it] <- psrf_metric(chains[1:it, , drop = FALSE])
   }
-  return(psrf_it)
+  return(rhats)
 }
 
-# apply to all variables
+# test setup for dev
+library(mice)
+data <- mice(nhanes, maxit = 10)
+thetas <- extract_thetas(data)
+# one variable
+chains <- thetas[[2]]
+psrf_metric(chains)
+psrf_chain(chains)
+calculate_psrf(chains, type = "original")
+# all variables
+lapply(thetas, psrf_metric)
+lapply(thetas, psrf_chain)
 lapply(thetas, calculate_psrf)
 
-# compare with rstan version
-convergence(imp)
+# # compute autocorrelation
+# # correlation between the t-th and (t-1)-th iteration in the MICE algorithm per variable
+# # using base R functions only
+#
+# cor(thetas[["bmi"]][1:(tau-1), 1], thetas[["bmi"]][2:tau, 1], use = "pairwise.complete.obs")
+# chains <- thetas[[2]]
+
+# vrbs <- names(data$data)
+# p <- length(vrbs)
+# m <- as.integer(data$m)
+# tau <- as.integer(data$iteration)
+# out <- expand.grid(.it = seq_len(tau), vrb = vrbs)
