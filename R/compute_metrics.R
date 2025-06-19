@@ -22,7 +22,7 @@ calculate_psrf <- function(chains, type = "original") {
   # do not compute on variables without imputations
   none_imputed <- all(is.nan(chains))
   if (none_imputed) {
-    rhat <- NA
+    return(NA)
   }
   if (!none_imputed) {
     if (type == "original" | type == "max") {
@@ -45,11 +45,8 @@ calculate_psrf <- function(chains, type = "original") {
     }
     if (type == "max") {
       # return the maximum of the three per iteration
-      apply(cbind(rhat_original, rhat_bulk, rhat_tail),
-            1,
-            max,
-            na.rm = TRUE)
-      # rhat_max <- max(rhat_original, rhat_bulk, rhat_tail, na.rm = TRUE)
+      # max(rhat_original, rhat_bulk, rhat_tail, na.rm = TRUE)
+      max(rhat_bulk, rhat_tail, na.rm = TRUE)
     }
   }
   return(rhat)
@@ -141,10 +138,16 @@ psrf_chain(chains)
 calculate_psrf(chains, type = "original")
 calculate_psrf(chains, type = "bulk")
 calculate_psrf(chains, type = "tail")
+calculate_psrf(chains, type = "max")
 # all variables
 lapply(thetas, psrf_metric)
 lapply(thetas, psrf_chain)
 lapply(thetas, calculate_psrf)
+
+# check if results match with rstan
+calculate_psrf(chains, type = "max")
+rstan::Rhat(chains)
+# NOPE
 
 # Rhat at it 1 == Rhat of chains as iterations
 # see https://github.com/stan-dev/rstan/blob/e79bc1746f61ebe0f40500b3f1540174d074540f/rstan/rstan/R/monitor.R#L184
@@ -152,6 +155,19 @@ a <- chains[1,]
 rstan::Rhat(a)
 dim(a) <- c(length(a), 1)
 rstan::Rhat(a)
+
+# rstan functions
+bulk_rhat <- rstan:::rhat_rfun(rstan:::z_scale(rstan:::split_chains(chains)))
+sims_folded <- abs(chains - median(chains))
+tail_rhat <- rstan:::rhat_rfun(rstan:::z_scale(rstan:::split_chains(sims_folded)))
+max(bulk_rhat, tail_rhat)
+rstan:::rhat_rfun(chains)
+# higher Rhat value on 'plain' data
+
+# try to match with my functions
+bulk_rhat2 <- z_scale(split_chains(chains)) |> calculate_psrf()
+tail_rhat2 <- z_scale(split_chains(abs(chains - median(chains)))) |> calculate_psrf()
+max(bulk_rhat2[length(bulk_rhat2)], tail_rhat2[length(tail_rhat2)])
 
 # # compute autocorrelation
 # # correlation between the t-th and (t-1)-th iteration in the MICE algorithm per variable
