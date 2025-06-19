@@ -73,7 +73,7 @@ split_chains <- function(chains) {
   if (tau < 4)
     return(chains)
   else {
-    # split each chain to get 2m chains
+    # split each chain to get 2 * m chains
     lower <- 1:floor(tau / 2)
     upper <- ceiling((tau / 2) + 1):tau
     splits <- base::cbind(chains[lower, ], chains[upper, ])
@@ -131,17 +131,27 @@ psrf_chain <- function(chains) {
 
 # test setup for dev
 library(mice)
-data <- mice(nhanes, maxit = 10)
+data <- mice(nhanes, maxit = 10, print = FALSE)
+convergence(data, diagnostic = "psrf")
 thetas <- extract_thetas(data)
 # one variable
 chains <- thetas[[2]]
 psrf_metric(chains)
 psrf_chain(chains)
 calculate_psrf(chains, type = "original")
+calculate_psrf(chains, type = "bulk")
+calculate_psrf(chains, type = "tail")
 # all variables
 lapply(thetas, psrf_metric)
 lapply(thetas, psrf_chain)
 lapply(thetas, calculate_psrf)
+
+# Rhat at it 1 == Rhat of chains as iterations
+# see https://github.com/stan-dev/rstan/blob/e79bc1746f61ebe0f40500b3f1540174d074540f/rstan/rstan/R/monitor.R#L184
+a <- chains[1,]
+rstan::Rhat(a)
+dim(a) <- c(length(a), 1)
+rstan::Rhat(a)
 
 # # compute autocorrelation
 # # correlation between the t-th and (t-1)-th iteration in the MICE algorithm per variable
