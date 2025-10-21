@@ -56,6 +56,19 @@ plot_results(results, "psrf_mean", 1, "MCAR")
 plot_results(results, "psrf_sd", 1, "MCAR")
 ```
 
+```{r, eval=FALSE}
+# plot each sim
+performance |>
+  filter(method == "MICE", mech == "MAR", term == "X3", prop == 0.5) |> 
+  ggplot(aes(x = .it, y = psrf_mean, group = .sim)) +
+  geom_hline(yintercept = 1, alpha = 0.1) + 
+  geom_line(alpha = 0.1) +
+  # geom_line(aes(y = psrf_mean_ll), linetype = "dashed", alpha = 0.3) +
+  # geom_line(aes(y = psrf_mean_ul), linetype = "dashed", alpha = 0.3) +
+  # facet_grid(term ~ mech + prop) +
+  theme_classic()
+```
+
 # Introduction
 
 Multiple imputation has become the de facto standard to accommodate missing data in social scientific research. The technique enables researchers to draw valid inferences from incomplete data [@rubin76]. Multiple imputation separates the missing data problem from the scientific problem. First, the missing values are imputed (i.e., filled in) using an imputation algorithm. Once the data are completed, the analysis of scientific interest can be performed on the completed data. This process is repeated several times to obtain a distribution of plausible values, which reflects the uncertainty in the data due to missingness. The analysis of scientific interest thus yields one estimate for each imputed dataset. Afterwards, the estimates from the different imputations are pooled into a single estimate. This pooled estimate is unbiased and confidence-valid if--and only if--both the missing data problem and the scientific problem are appropriately considered.
