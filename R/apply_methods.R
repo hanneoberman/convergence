@@ -35,9 +35,15 @@ apply_CCA <- function(amp) {
 }
 
 # MICE imputation
-apply_MICE <- function(amp, n_it) {
+apply_MICE <- function(amp, n_it, composite = FALSE) {
+  # make methods vector, edit for non-convergence condition
+  meth <- rep("norm", n_col + 1)
+  names(meth) <- c("Y", paste0("X", 1:n_col))
+  if (composite) {
+    meth[n_col + 1] <- "~I(X1 + X2)"
+  }
   # first imputation with MICE
-  imp1 <- mice::mice(amp$amp, method = "norm", maxit = 1, printFlag = FALSE)
+  imp1 <- mice::mice(amp$amp, method = meth, maxit = 1, printFlag = FALSE)
   # add regression estimates
   implist <- list(imp1, cbind(.it = 1, estimate_param(imp1)))
   # iterate and estimate
@@ -91,13 +97,13 @@ add_iteration <- function(implist) {
 }
 
 # combine into one function
-apply_methods <- function(amps, betas, n_it) {
+apply_methods <- function(amps, betas, n_it, non_conv) {
   # comparative truth on complete dataset
   full <- purrr::map_dfr(amps, ~{apply_full(.x)})
   # apply CCA to each incomplete dataset
   CCA <- purrr::map_dfr(amps, ~{apply_CCA(.x)})
   # impute with MICE and estimate effects
-  MICE <- purrr::map_dfr(amps, ~{apply_MICE(.x, n_it)})
+  MICE <- purrr::map_dfr(amps, ~{apply_MICE(.x, n_it, non_conv)})
   # combine estimates 
   ests <- rbind(full, CCA, MICE) |> 
     cbind(truth = c(0, betas))

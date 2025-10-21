@@ -1,12 +1,17 @@
 # functions to create incomplete datasets
 
 # generate complete data
-generate_complete <- function(n_obs, n_col, corr, betas) {
+generate_complete <- function(n_obs, n_col, corr, betas, composite = FALSE) {
+  if (composite & n_col < 3L) {stop("Composite variable condition requires 2 or more predictor variables.")}
   # create variance-covariance matrix with moderate correlations
   vcov <- matrix(corr, nrow = n_col, ncol = n_col)
   diag(vcov) <- 1
   # create predictor space data
   X <- mvtnorm::rmvnorm(n = n_obs, sigma = vcov)
+  # for non-convergence condition, add composite variable
+  if (composite) {
+    X[, n_col] <- X[ ,1] + X[, 2]
+  }
   # multiply each predictor observation by the corresponding beta
   Y <- X %*% betas
   # generate residual error for each observation
@@ -22,11 +27,11 @@ generate_complete <- function(n_obs, n_col, corr, betas) {
 create_patterns <- function(n_col) {
   pat_list <- vector(mode = "list", length = n_col + 1)
   pat_list <- lapply(pat_list, \(x) {x <- c(0, 1)})
-  mis_pat <- expand.grid(pat_list) 
-  names(mis_pat) <- c("Y", paste0("X", 1:n_col))
+  obs_pat <- expand.grid(pat_list) 
+  names(obs_pat) <- c("Y", paste0("X", 1:n_col))
   # omit patterns with all/none missing
-  mis_pat <- mis_pat[rowSums(mis_pat) > 0 & rowSums(mis_pat) < n_col, ]
-  return(mis_pat)
+  obs_pat <- obs_pat[rowSums(obs_pat) > 0 & rowSums(obs_pat) < n_col, ]
+  return(abs(obs_pat - 1))
 }
 
 # ampute the complete data
@@ -53,13 +58,16 @@ create_data <- function(sample_size,
                         effects,
                         patterns,
                         mechanisms,
-                        proportions) {
+                        proportions,
+                        non_conv, 
+                        ...) {
   # create a single complete dataset
   dat <- generate_complete(
     n_obs = sample_size,
     n_col = length(effects),
     corr = correlations,
-    betas = effects
+    betas = effects,
+    composite = non_conv
   )
   # ampute the data with different missingness
   amps <- induce_missingness(dat,
