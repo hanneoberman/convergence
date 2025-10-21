@@ -164,7 +164,7 @@ max(bulk_rhat, tail_rhat)
 rstan:::rhat_rfun(chains)
 # higher Rhat value on 'plain' data
 
-# try to match with my functions
+# try to match with my functions 
 bulk_rhat2 <- z_scale(split_chains(chains)) |> calculate_psrf()
 tail_rhat2 <- z_scale(split_chains(abs(chains - median(chains)))) |> calculate_psrf()
 max(bulk_rhat2[length(bulk_rhat2)], tail_rhat2[length(tail_rhat2)])
