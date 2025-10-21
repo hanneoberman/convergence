@@ -7,6 +7,8 @@ library(dplyr)
 library(mvtnorm)
 library(mice)
 library(miceadds)
+library(ggplot2)
+library(ggmice)
 
 # functions
 miceadds::source.all("./R")
@@ -15,14 +17,15 @@ miceadds::source.all("./R")
 set.seed(11)
 
 # parameters
-n_sim <- 20
-n_obs <- 500
+n_sim <- 500
+n_obs <- 200
 n_col <- 3
-corr <- 0.5
+composite <- FALSE
+corr <- 0.3
 beta <- 1
 betas <- rep(beta, n_col)
 mis_pat <- create_patterns(n_col)
-mis_mech = c("MCAR") #, "MAR", "MNAR")
+mis_mech = c("MCAR", "MAR") #, "MNAR")
 mis_prop = c(0.05, 0.25, 0.5, 0.75, 0.95)
 n_it <- 50
 
@@ -47,7 +50,7 @@ n_it <- 50
 ### COMBINE INTO ONE FUCTION ###
 ################################
 
-simulate_once <- function(n_obs, corr, betas, mis_pat, mis_mech, mis_prop, n_it) {
+simulate_once <- function(n_obs, corr, betas, mis_pat, mis_mech, mis_prop, n_it, composite) {
   # generate incomplete data
   amps <- create_data(
     sample_size = n_obs,
@@ -55,10 +58,11 @@ simulate_once <- function(n_obs, corr, betas, mis_pat, mis_mech, mis_prop, n_it)
     effects = betas,
     patterns = mis_pat,
     mechanisms = mis_mech,
-    proportions = mis_prop
+    proportions = mis_prop,
+    non_conv = composite
   )
   # estimate regression coefficients
-  ests <- apply_methods(amps, betas, n_it)
+  ests <- apply_methods(amps, betas, n_it, non_conv = composite)
   # output
   return(ests)
 }
@@ -117,12 +121,13 @@ parallel::clusterExport(
     "betas",
     "mis_pat",
     "mis_mech",
-    "mis_prop"
+    "mis_prop",
+    "composite"
   )
 )
 
 out <- pbreplicate(n_sim, 
-                   simulate_once(n_obs, corr, betas, mis_pat, mis_mech, mis_prop, n_it),
+                   simulate_once(n_obs, corr, betas, mis_pat, mis_mech, mis_prop, n_it, composite),
                    cl = cl, 
                    simplify = FALSE)
 
