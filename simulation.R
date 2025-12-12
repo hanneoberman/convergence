@@ -21,6 +21,7 @@ n_sim <- 500
 n_obs <- 200
 n_col <- 3
 composite <- FALSE
+if(composite) {n_col <- n_col - 1}
 corr <- 0.3
 beta <- 1
 betas <- rep(beta, n_col)
@@ -28,6 +29,36 @@ mis_pat <- create_patterns(n_col)
 mis_mech = c("MCAR", "MAR") #, "MNAR")
 mis_prop = c(0.05, 0.25, 0.5, 0.75, 0.95)
 n_it <- 50
+
+# create simulation grid
+grid <- expand.grid(
+  mech = mis_mech, # make this an integer if the grid gets too big
+  prop = mis_prop,
+  iter = 1:n_sim
+) 
+grid <- cbind(row_id = row_number(grid), grid)
+
+# save as parquet (interoperable version of binary RDS, which is readable line by line and not necessarily all at once)
+nanoparquet::write_parquet(grid, file = "grid.parquet")
+
+# full grid with constants and seed
+grid <- expand.grid(
+  rep_id = 1:n_sim,
+  n_obs = n_obs,
+  n_col = n_col,
+  composite = composite,
+  corr = corr,
+  betas = betas,
+  mech = mis_mech, 
+  prop = mis_prop,
+  n_it = n_it
+) 
+grid <- cbind(
+  row_id = row_number(grid), 
+  seed = as.integer(sample(2^32/2, size = nrow(grid))),
+  grid
+  )
+nanoparquet::write_parquet(grid, file = "fullgrid.parquet")
 
 # #################################
 # ### TEST LOWER LEVEL FUCTIONS ###
